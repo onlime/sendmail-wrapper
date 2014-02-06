@@ -40,7 +40,7 @@ $ ln -sf /opt/sendmail-wrapper/sendmail-throttle.php /usr/sbin/sendmail-throttle
 $ ln -sf /opt/sendmail-wrapper/php_set_envs.php /usr/sbin/php-set-environment
 ```
 
-## Configure sudo
+## Setup sudo
 
 Add the following lines to your /etc/sudoers:
 
@@ -49,7 +49,7 @@ www-data        ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle
 %customers      ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle
 ```
 
-## Configure PHP
+## Setup PHP
 
 Add/modify the following in your php.ini:
 
@@ -58,7 +58,7 @@ sendmail_path = /usr/sbin/sendmail-wrapper
 auto_prepend_file = /usr/sbin/php-set-environment
 ```
 
-## Configure MySQL
+## Setup MySQL
 
 Import the sendmailwrapper database schema:
 

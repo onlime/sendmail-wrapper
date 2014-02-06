@@ -9,27 +9,27 @@ A powerful sendmail wrapper to log and throttle emails send by PHP
 
 Clone repository from GitHub:
 
-```
-# cd /opt/
-# git clone https://github.com/onlime/sendmail-wrapper.git sendmail-wrapper
+```bash
+$ cd /opt/
+$ git clone https://github.com/onlime/sendmail-wrapper.git sendmail-wrapper
 ```
 
 Setup system user for sendmail-wrapper:
 
-```
-# adduser --system --home /no/home --no-create-home --uid 6000 --group --disabled-password --disabled-login sendmailwrapper
-# adduser sendmailwrapper customers
+```bash
+$ adduser --system --home /no/home --no-create-home --uid 6000 --group --disabled-password --disabled-login sendmailwrapper
+$ adduser sendmailwrapper customers
 ```
 
 Set correct permissions:
 
-```
-# cd /opt/sendmail-wrapper/
-# chown sendmailwrapper:sendmailwrapper sendmail-*
-# chmod 755 sendmail-wrapper.php
-# chmod 511 sendmail-throttle.php
-# chmod 400 throttle.sql
-# chattr +i sendmail-*.php
+```bash
+$ cd /opt/sendmail-wrapper/
+$ chown sendmailwrapper:sendmailwrapper sendmail-*
+$ chmod 755 sendmail-wrapper.php
+$ chmod 511 sendmail-throttle.php
+$ chmod 400 throttle.sql
+$ chattr +i sendmail-*.php
 ```
 
 Create symlinks:

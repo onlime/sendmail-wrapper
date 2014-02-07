@@ -28,8 +28,15 @@ define('ADMIN_TO'     , 'info@example.com');
 define('ADMIN_FROM'   , 'info@example.com');
 define('ADMIN_SUBJECT', 'Sendmail limit exceeded');
 
+// default timezone
+define('DEFAULT_TZ'     , 'Europe/Zurich');
+
 /*****************************************************************************/
 
+// assure the default timezone is set
+if (!ini_get('date.timezone')) {
+    date_default_timezone_set(DEFAULT_TZ);
+}
 
 class SendmailThrottle
 {
@@ -178,6 +185,7 @@ class SendmailThrottle
             return $status;
             
         } catch (PDOException $e) {
+            syslog(LOG_INFO, sprintf('%s: PDO-Error: %s', SYSLOG_PREFIX, $e->getMessage()));
             die('PDO-Error: ' . $e->getMessage());
         }
     }

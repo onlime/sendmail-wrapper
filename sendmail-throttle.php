@@ -135,7 +135,7 @@ class SendmailThrottle
                 $rcptCur  = $rcptCount;
                 $rcptTot  = $rcptCount;
                 
-                $sql = 'INSERT INTO throttle (update_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot) 
+                $sql = 'INSERT INTO throttle (updated_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot) 
                         VALUES (NOW(), :username, :countMax, :rcptMax, :rcptCur, :rcptTot)';
                 $stmt = $this->_pdo->prepare($sql);
                 $stmt->bindParam(':username', $username);

@@ -70,7 +70,7 @@ Create a MySQL user with the following permissions:
 
 ```sql
 GRANT USAGE ON *.* TO sendmailwrapper@'localhost' IDENTIFIED BY '********';
-GRANT SELECT, INSERT, UPDATE ON airpane_cp.sendmail_throttle TO sendmailwrapper@'localhost';
+GRANT SELECT, INSERT, UPDATE ON sendmailwrapper.throttle TO sendmailwrapper@'localhost';
 ```
 
 # Configuration

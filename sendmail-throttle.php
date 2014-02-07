@@ -102,16 +102,16 @@ class SendmailThrottle
                 $rcptTot  = $obj->rcpt_tot + $rcptCount; // raise by number of recipients
                 
                 // check email count
-                if ($countCur < $obj->count_max) {
+                if ($countCur <= $obj->count_max) {
                     $status = 0;
                 } else {
-                    $status = ($countCur == $obj->count_max) ? 1 : 2;
+                    $status = ($countCur == ($obj->count_max + 1)) ? 1 : 2;
                 }
                 // check recipient count
-                if ($rcptCur < $obj->rcpt_max) {
+                if ($rcptCur <= $obj->rcpt_max) {
                     $status = 0;
                 } else {
-                    $status = ($rcptCur == $obj->rcpt_max) ? 1 : 2;
+                    $status = ($rcptCur == ($obj->rcpt_max + 1)) ? 1 : 2;
                 }
                 
                 // reset counters on new day (after midnight)

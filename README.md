@@ -25,11 +25,12 @@ Set correct permissions:
 
 ```bash
 $ cd /opt/sendmail-wrapper/
-$ chown sendmailwrapper:sendmailwrapper sendmail-*
-$ chmod 755 sendmail-wrapper.php
+$ chattr -i *.php
+$ chown sendmailwrapper:sendmailwrapper *.php
+$ chmod 755 sendmail-wrapper.php prepend.php
 $ chmod 511 sendmail-throttle.php
 $ chmod 400 throttle.sql
-$ chattr +i sendmail-*.php
+$ chattr +i *.php
 ```
 
 Create symlinks:
@@ -37,7 +38,7 @@ Create symlinks:
 ```
 $ ln -sf /opt/sendmail-wrapper/sendmail-wrapper.php /usr/sbin/sendmail-wrapper
 $ ln -sf /opt/sendmail-wrapper/sendmail-throttle.php /usr/sbin/sendmail-throttle
-$ ln -sf /opt/sendmail-wrapper/php_set_envs.php /usr/sbin/php-set-environment
+$ ln -sf /opt/sendmail-wrapper/prepend.php /usr/sbin/php-prepend
 ```
 
 ## Setup sudo
@@ -55,7 +56,7 @@ Add/modify the following in your php.ini:
 
 ```ini
 sendmail_path = /usr/sbin/sendmail-wrapper
-auto_prepend_file = /usr/sbin/php-set-environment
+auto_prepend_file = /usr/sbin/php-prepend
 ```
 
 ## Setup MySQL

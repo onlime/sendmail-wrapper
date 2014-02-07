@@ -107,7 +107,16 @@ class SendmailThrottle
                     $status = ($rcptCur == $obj->rcpt_max) ? 1 : 2;
                 }
                 
-                $sql = 'UPDATE throttle SET count_cur = :countCur, count_tot = :countTot, 
+                // reset counters on new day (after midnight)
+                $dateUpdated = new DateTime($obj->updated_ts);
+                $dateCurrent = new DateTime();
+                $sameDay = ($dateUpdated->format('Y-m-d') == $dateCurrent->format('Y-m-d'));
+                if (!$sameDay) {
+                    $countCur = 1;
+                    $rcptCur  = 1;
+                }
+                
+                $sql = 'UPDATE throttle SET updated_ts = NOW(), count_cur = :countCur, count_tot = :countTot, 
                         rcpt_cur = :rcptCur, rcpt_tot = :rcptTot, status = :status 
                         WHERE username = :username';
                 $stmt = $this->_pdo->prepare($sql);
@@ -126,8 +135,8 @@ class SendmailThrottle
                 $rcptCur  = $rcptCount;
                 $rcptTot  = $rcptCount;
                 
-                $sql = 'INSERT INTO throttle (username, count_max, rcpt_max, rcpt_cur, rcpt_tot) 
-                        VALUES (:username, :countMax, :rcptMax, :rcptCur, :rcptTot)';
+                $sql = 'INSERT INTO throttle (update_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot) 
+                        VALUES (NOW(), :username, :countMax, :rcptMax, :rcptCur, :rcptTot)';
                 $stmt = $this->_pdo->prepare($sql);
                 $stmt->bindParam(':username', $username);
                 $stmt->bindParam(':countMax', $countMax, PDO::PARAM_INT);

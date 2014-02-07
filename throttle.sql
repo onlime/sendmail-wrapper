@@ -2,17 +2,19 @@ SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='TRADITIONAL,ALLOW_INVALID_DATES';
 
-
-CREATE SCHEMA IF NOT EXISTS `sendmailwrapper` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
-USE `sendmailwrapper`;
+CREATE SCHEMA IF NOT EXISTS `sendmailwrapper` DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci ;
+USE `sendmailwrapper` ;
 
 -- -----------------------------------------------------
--- Table `sendmail_throttle`
+-- Table `sendmailwrapper`.`throttle`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `throttle` (
+DROP TABLE IF EXISTS `sendmailwrapper`.`throttle` ;
+
+CREATE TABLE IF NOT EXISTS `sendmailwrapper`.`throttle` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(30) NOT NULL DEFAULT '',
   `create_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_ts` TIMESTAMP NULL DEFAULT NULL,
   `count_max` INT NOT NULL DEFAULT 0 COMMENT 'maximum sent emails per time period',
   `count_cur` INT NOT NULL DEFAULT 1 COMMENT 'email count of current time period',
   `count_tot` INT NOT NULL DEFAULT 1 COMMENT 'total email count',

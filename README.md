@@ -34,7 +34,7 @@ $ chmod 400 throttle.sql
 
 Create symlinks:
 
-```
+```bash
 $ ln -sf /opt/sendmail-wrapper/sendmail-wrapper.php /usr/sbin/sendmail-wrapper
 $ ln -sf /opt/sendmail-wrapper/sendmail-throttle.php /usr/sbin/sendmail-throttle
 $ /bin/cp -a prepend.php /var/www/shared/

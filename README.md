@@ -24,13 +24,12 @@ $ adduser sendmailwrapper customers
 Set correct permissions:
 
 ```bash
-$ cd /opt/sendmail-wrapper/
-$ chattr -i sendmail-*.php
-$ chown sendmailwrapper:sendmailwrapper *.php
-$ chmod 755 sendmail-wrapper.php prepend.php
-$ chmod 511 sendmail-throttle.php
+$ chown sendmailwrapper:sendmailwrapper *.php *.ini
+$ chmod 400 config.private.ini
+$ chmod 444 config.ini config.local.ini
+$ chmod 555 sendmail-wrapper.php prepend.php
+$ chmod 500 sendmail-throttle.php
 $ chmod 400 throttle.sql
-$ chattr +i sendmail-*.php
 ```
 
 Create symlinks:
@@ -46,8 +45,8 @@ $ /bin/cp -a prepend.php /var/www/shared/
 Add the following lines to your /etc/sudoers:
 
 ```
-www-data        ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle
-%customers      ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle
+www-data        ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle [0-9]*
+%customers      ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle [0-9]*
 ```
 
 ## Setup PHP
@@ -76,41 +75,49 @@ GRANT SELECT, INSERT, UPDATE ON sendmailwrapper.throttle TO sendmailwrapper@'loc
 
 # Configuration
 
-Configure sendmail-wrapper.php:
+Default configuration can be found in **config.ini**:
 
-```php
-// throttle and sendmail commands
-define('SENDMAIL_CMD'   , '/usr/sbin/sendmail -t -i');
-define('THROTTLE_CMD'   , 'sudo -u sendmailwrapper /usr/sbin/sendmail-throttle');
-// turn on recipient throttling
-define('THROTTLE_ON'    , true);
-// default host (infrastructure domain)
-define('DEFAULT_HOST'   , 'example.com');
-// syslog prefix
-define('SYSLOG_PREFIX'  , 'sendmail-wrapper-php');
-// extra header prefix
-define('X_HEADER_PREFIX', 'X-Example-');
-// default timezone
-define('DEFAULT_TZ'     , 'Europe/Zurich');
+```ini
+[global]
+defaultTZ = Europe/Zurich
+adminTo = hostmaster@example.com
+adminFrom = hostmaster@example.com
+
+[wrapper]
+sendmailCmd = "/usr/sbin/sendmail -t -i"
+throttleCmd ="sudo -u sendmailwrapper /usr/sbin/sendmail-throttle"
+throttleOn = true
+defaultHost = "example.com"
+syslogPrefix = sendmail-wrapper-php
+xHeaderPrefix = "X-Example-"
+
+[throttle]
+countMax = 1000
+rcptMax = 1000
+syslogPrefix = sendmail-throttle-php
+adminSubject = "Sendmail limit exceeded"
+
+[db]
+dsn = "mysql:host=localhost;dbname=sendmailwrapper"
+user = sendmailwrapper
+pass = "xxxxxxxxxxxxxxxxxxxxx"
 ```
 
-Configure sendmail-throttle.php:
+You should not change any of the above values. Create your own **config.local.ini** instead to overwrite some values, e.g.:
 
-```php
-// database configuration
-define('DB_DSN',  'mysql:host=localhost;dbname=sendmailwrapper');
-define('DB_USER', 'sendmailwrapper');
-define('DB_PASS', 'xxxxxxxxxxxxxxx');
+```ini
+[global]
+adminTo = hostmaster@mydomain.com
+adminFrom = hostmaster@mydomain.com
 
-// throttle configuration
-define('COUNT_MAX', 1000);
-define('RCPT_MAX',  1000);
+[wrapper]
+defaultHost = "mydomain.com"
+xHeaderPrefix = "X-MyCompany-"
+```
 
-// syslog configuration
-define('SYSLOG_PREFIX', 'sendmail-throttle-php');
+Never put your database password in any of the above configuration files. Use another configuration file called **config.private.ini** instead, e.g.:
 
-// system administrator report
-define('ADMIN_TO'     , 'info@example.com');
-define('ADMIN_FROM'   , 'info@example.com');
-define('ADMIN_SUBJECT', 'Sendmail limit exceeded');
+```ini
+[db]
+pass = "mySuper-SecurePassword/826.4287+foo"
 ```

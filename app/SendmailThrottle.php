@@ -228,8 +228,13 @@ class SendmailThrottle extends StdinMailParser
      */
     protected function _mimeHeaderDecode($header)
     {
-        $decoded = imap_mime_header_decode(imap_utf8($header));
-        $decodedObj = $decoded[0];
-        return $decodedObj->text;
+        $utf8Header = imap_utf8($header);
+        $decoded = imap_mime_header_decode($utf8Header);
+        if (isset($decoded[0])) {
+            $decodedObj = $decoded[0];
+            return $decodedObj->text;
+        } else {
+            return $utf8Header;
+        }
     }
 }

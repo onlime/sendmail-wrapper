@@ -7,7 +7,7 @@ require_once 'ConfigLoader.php';
  *
  * @copyright  Copyright (c) 2007-2014 Onlime Webhosting (http://www.onlime.ch)
  */
-class SendmailThrottle
+class SendmailThrottle extends StdinMailParser
 {
     /**
      * @var StdClass
@@ -26,7 +26,9 @@ class SendmailThrottle
     {
         // load configuration
         $configLoader = new ConfigLoader();
-        $this->_conf = $configLoader->getConfig();
+        $this->_conf  = $configLoader->getConfig();
+
+        parent::__construct();
     }
 
     /**
@@ -115,6 +117,7 @@ class SendmailThrottle
                 $stmt->bindParam(':status'  , $status  , PDO::PARAM_INT);
                 $stmt->bindParam(':username', $username);
                 $stmt->execute();
+                $id = $obj->id;
             } else {
                 $countMax = $this->_conf->throttle->countMax;
                 $countCur = 1;
@@ -132,6 +135,7 @@ class SendmailThrottle
                 $stmt->bindParam(':rcptCur' , $rcptCur , PDO::PARAM_INT);
                 $stmt->bindParam(':rcptTot' , $rcptTot , PDO::PARAM_INT);
                 $stmt->execute();
+                $id = $this->_pdo->lastInsertId();
                 $status = 0;
             }
 
@@ -167,6 +171,9 @@ class SendmailThrottle
                 );
             }
 
+            // write to db log
+            $this->_logMessage($id, $username, $rcptCount, $status);
+
             // return status code
             return $status;
 
@@ -174,5 +181,39 @@ class SendmailThrottle
             syslog(LOG_WARNING, sprintf('%s: PDOException: %s', $this->_conf->throttle->syslogPrefix, $e->getMessage()));
             return 3;
         }
+    }
+
+    /**
+     * Insert metadata of each message into messages table,
+     * for logging purposes.
+     *
+     * @param int $throttleId
+     * @param string $username
+     * @param int $rcptCount
+     * @param int $status
+     */
+    protected function _logMessage($throttleId, $username, $rcptCount, $status)
+    {
+        $headerArr = $this->getParsedHeaderArr();
+
+        $sql = 'INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from, to, cc, bcc, subject, site, client, script)
+                   VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :from, :to, :cc, :bcc, :subject, :site, :client, :script)';
+        $stmt = $this->_pdo->prepare($sql);
+        $stmt->bindParam(':throttleId', $throttleId);
+        $stmt->bindParam(':username'  , $username);
+        $stmt->bindParam(':uid'       , $_SERVER['SUDO_UID']);
+        $stmt->bindParam(':gid'       , $_SERVER['SUDO_GID']);
+        $stmt->bindParam(':rcptCount' , $rcptCount);
+        $stmt->bindParam(':status'    , $status);
+        $stmt->bindParam(':msgid'     , $headerArr['x-meta-msgid']);
+        $stmt->bindParam(':from'      , imap_utf8($headerArr['from']));
+        $stmt->bindParam(':to'        , imap_utf8($headerArr['to']));
+        $stmt->bindParam(':cc'        , imap_utf8($headerArr['cc']));
+        $stmt->bindParam(':bcc'       , imap_utf8($headerArr['bcc']));
+        $stmt->bindParam(':subject'   , imap_utf8($headerArr['subject']));
+        $stmt->bindParam(':site'      , $headerArr['x-meta-site']);
+        $stmt->bindParam(':client'    , $headerArr['x-meta-client']);
+        $stmt->bindParam(':script'    , $headerArr['x-meta-script']);
+        $stmt->execute();
     }
 }

@@ -7,7 +7,7 @@ require_once 'ConfigLoader.php';
  *
  * @copyright  Copyright (c) 2007-2014 Onlime Webhosting (http://www.onlime.ch)
  */
-class SendmailWrapper
+class SendmailWrapper extends StdinMailParser
 {
     /**
      * @var StdClass
@@ -22,6 +22,8 @@ class SendmailWrapper
         // load configuration
         $configLoader = new ConfigLoader();
         $this->_conf  = $configLoader->getConfig();
+
+        parent::__construct();
     }
 
     /**
@@ -31,6 +33,8 @@ class SendmailWrapper
      */
     public function run()
     {
+        $status = 0;
+
         // get config variables
         $sendmailCmd   = $this->_conf->wrapper->sendmailCmd;
         $throttleCmd   = $this->_conf->wrapper->throttleCmd;
@@ -47,29 +51,11 @@ class SendmailWrapper
             $defaultHost
         );
 
-        // setup additional headers
-        $addHeaders                           = array();
-        $addHeaders[$xHeaderPrefix . 'MsgID'] = sprintf('<%s>', $msgId);
+        // set additional header
+        $this->setHeader($xHeaderPrefix . 'MsgID', sprintf('<%s>', $msgId));
 
-        // read STDIN (complete mail message)
-        $data = '';
-        while (!feof(STDIN)) {
-            $data .= fread(STDIN, 1024);
-        }
-
-        // normalize line breaks (get rid of Windows newlines on a Unix platform)
-        $data = str_replace("\r\n", PHP_EOL, $data);
-
-        // split out headers
-        list($headers, $message) = explode(PHP_EOL . PHP_EOL, $data, 2);
-
-        // parse headers
-        $headerLines = explode(PHP_EOL, $headers);
-        $headerArr   = array();
-        foreach ($headerLines as $line) {
-            list($headerKey, $headerValue) = explode(":", $line);
-            $headerArr[strtolower(trim($headerKey))] = trim($headerValue);
-        }
+        // parse original headers
+        $headerArr = $this->getParsedHeaderArr();
 
         // count total number of recipients
         $rcptCount   = 0;
@@ -81,14 +67,7 @@ class SendmailWrapper
             }
         }
 
-        // throttling
-        if ($throttleOn) {
-            $throttleCmd .= ' ' . $rcptCount;
-            system($throttleCmd, $throttleStatus);
-        }
-
-        // message logging to syslog
-        $logData   = array(
+        $messageInfo   = array(
             'uid'     => `whoami`,
             'msgid'   => $msgId,
             'from'    => @$headerArr['from'],
@@ -96,27 +75,59 @@ class SendmailWrapper
             'subject' => @$headerArr['subject'],
             'site'    => @$_SERVER["HTTP_HOST"],
             'client'  => @$_SERVER["REMOTE_ADDR"],
-            'file'    => getenv('SCRIPT_FILENAME'),
-            'status'  => $throttleStatus
+            'script'  => getenv('SCRIPT_FILENAME'),
+            'status'  => $status
         );
-        $syslogMsg = sprintf('%s: uid=%s, msgid=%s, from=%s, to=%s, subject="%s", site=%s, client=%s, file=%s, throttleStatus=%s',
+
+        // throttling
+        if ($throttleOn) {
+            // add recipient count to throttle command
+            $throttleCmd .= ' ' . $rcptCount;
+
+            // simple command execution
+            //system($throttleCmd, $status);
+
+            // redirect STDIN data to throttle command
+            // We're going to use the whole email message including some
+            // extra headers.
+            $throttleMsg = $this->buildMessage(array(
+                'X-Meta-MsgID'  => $messageInfo['msgid'],
+                'X-Meta-Site'   => $messageInfo['site'],
+                'X-Meta-Client' => $messageInfo['client'],
+                'X-Meta-Script' => $messageInfo['script'],
+            ));
+            $descriptorSpec = array(
+                0 => array('pipe', 'r')
+            );
+            $proc = proc_open($throttleCmd, $descriptorSpec, $pipes);
+            if (is_resource($proc)) {
+                fwrite($pipes[0], $throttleMsg);
+                fclose($pipes[0]);
+                // It is important that you close any pipes before calling
+                // proc_close in order to avoid a deadlock
+                $status = proc_close($proc);
+            }
+        }
+
+        // message logging to syslog
+        $syslogMsg = sprintf('%s: uid=%s, msgid=%s, from=%s, to=%s, subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
             $this->_conf->wrapper->syslogPrefix,
-            $logData['uid'],
-            $logData['msgid'],
-            $logData['from'],
-            $logData['to'],
-            $logData['subject'],
-            $logData['site'],
-            $logData['client'],
-            $logData['file'],
-            $logData['status']
+            $messageInfo['uid'],
+            $messageInfo['msgid'],
+            $messageInfo['from'],
+            $messageInfo['to'],
+            $messageInfo['subject'],
+            $messageInfo['site'],
+            $messageInfo['client'],
+            $messageInfo['script'],
+            $messageInfo['status']
         );
         syslog(LOG_INFO, $syslogMsg);
 
         // terminate if message limit exceeded
-        if ($throttleOn && $throttleStatus > 0) {
+        if ($throttleOn && $status > 0) {
             // return exit status
-            return $throttleStatus;
+            return $status;
         }
 
         // get arguments
@@ -135,11 +146,11 @@ class SendmailWrapper
             // use Return-Path as -r parameter
             if (isset($headerArr['return-path']) && filter_var($headerArr['return-path'], FILTER_VALIDATE_EMAIL)) {
                 $sendmailCmd .= ' -r ' . $headerArr['return-path'];
-                $addHeaders[$xHeaderPrefix . 'EnvSender'] = 'Return-Path';
+                $this->setHeader($xHeaderPrefix . 'EnvSender', 'Return-Path');
                 // use From as -r parameter
             } elseif (isset($headerArr['from']) && filter_var($headerArr['from'], FILTER_VALIDATE_EMAIL)) {
                 $sendmailCmd .= ' -r ' . $headerArr['from'];
-                $addHeaders[$xHeaderPrefix . 'EnvSender'] = 'From';
+                $this->setHeader($xHeaderPrefix . 'EnvSender', 'From');
             }
         }
 
@@ -149,15 +160,8 @@ class SendmailWrapper
             //$addHeaders['X-Debug-Argv'] = $allArgs;
         }
 
-        // add additional headers
-        if ($addHeaders) {
-            foreach ($addHeaders as $field => $contents) {
-                $headers .= PHP_EOL . $field . ": " . $contents;
-            }
-        }
-
         // reassemble the message
-        $data = $headers . PHP_EOL . PHP_EOL . $message;
+        $data = $this->buildMessage();
 
         // pass email to the original sendmail binary
         $h = popen($sendmailCmd, "w");
@@ -165,6 +169,6 @@ class SendmailWrapper
         pclose($h);
 
         // success
-        return 0;
+        return $status;
     }
 }

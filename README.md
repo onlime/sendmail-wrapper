@@ -63,7 +63,7 @@ auto_prepend_file = /var/www/shared/prepend.php
 Import the sendmailwrapper database schema:
 
 ```bash
-$ mysql -u root -p < throttle.sql
+$ mysql -u root -p < schema/schema.mysql.sql
 ```
 
 Create a MySQL user with the following permissions:
@@ -71,6 +71,7 @@ Create a MySQL user with the following permissions:
 ```sql
 GRANT USAGE ON *.* TO sendmailwrapper@'localhost' IDENTIFIED BY '********';
 GRANT SELECT, INSERT, UPDATE ON sendmailwrapper.throttle TO sendmailwrapper@'localhost';
+GRANT INSERT ON sendmailwrapper.messages TO sendmailwrapper@'localhost';
 ```
 
 # Configuration

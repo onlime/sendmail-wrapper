@@ -17,7 +17,7 @@ chmod 400 config.private.ini
 chmod 444 config.ini config.local.ini
 chmod 555 sendmail-wrapper.php prepend.php
 chmod 500 sendmail-throttle.php
-chmod 400 throttle.sql
+chmod 400 schema/*.sql
 #chattr +i sendmail-*.php
 
 ln -sf ${INSTALL_DIR}/sendmail-wrapper.php ${WRAPPER_BIN}

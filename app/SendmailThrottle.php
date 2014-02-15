@@ -197,7 +197,7 @@ class SendmailThrottle extends StdinMailParser
     {
         $headerArr = $this->getParsedHeaderArr();
 
-        $sql = 'INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from, to, cc, bcc, subject, site, client, script)
+        $sql = 'INSERT INTO messages (`throttle_id`, `username`, `uid`, `gid`, `rcpt_count`, `status`, `msgid`, `from`, `to`, `cc`, `bcc`, `subject`, `site`, `client`, `script`)
                    VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :from, :to, :cc, :bcc, :subject, :site, :client, :script)';
         $stmt = $this->_pdo->prepare($sql);
         $stmt->bindParam(':throttleId', $throttleId);

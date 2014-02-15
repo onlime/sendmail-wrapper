@@ -197,8 +197,10 @@ class SendmailThrottle extends StdinMailParser
     {
         $headerArr = $this->getParsedHeaderArr();
 
-        $sql = 'INSERT INTO messages (`throttle_id`, `username`, `uid`, `gid`, `rcpt_count`, `status`, `msgid`, `from`, `to`, `cc`, `bcc`, `subject`, `site`, `client`, `script`)
-                   VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :from, :to, :cc, :bcc, :subject, :site, :client, :script)';
+        $sql = 'INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from_addr, to_addr,
+                  cc_addr, bcc_addr, subject, site, client, script)
+                VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :fromAddr, :toAddr,
+                  :ccAddr, :bccAddr, :subject, :site, :client, :script)';
         $stmt = $this->_pdo->prepare($sql);
         $stmt->bindParam(':throttleId', $throttleId);
         $stmt->bindParam(':username'  , $username);
@@ -207,10 +209,10 @@ class SendmailThrottle extends StdinMailParser
         $stmt->bindParam(':rcptCount' , $rcptCount);
         $stmt->bindParam(':status'    , $status);
         $stmt->bindParam(':msgid'     , $headerArr['x-meta-msgid']);
-        $stmt->bindParam(':from'      , imap_utf8($headerArr['from']));
-        $stmt->bindParam(':to'        , imap_utf8($headerArr['to']));
-        $stmt->bindParam(':cc'        , imap_utf8($headerArr['cc']));
-        $stmt->bindParam(':bcc'       , imap_utf8($headerArr['bcc']));
+        $stmt->bindParam(':fromAddr'  , imap_utf8($headerArr['from']));
+        $stmt->bindParam(':toAddr'    , imap_utf8($headerArr['to']));
+        $stmt->bindParam(':ccAddr'    , imap_utf8($headerArr['cc']));
+        $stmt->bindParam(':bccAddr'   , imap_utf8($headerArr['bcc']));
         $stmt->bindParam(':subject'   , imap_utf8($headerArr['subject']));
         $stmt->bindParam(':site'      , $headerArr['x-meta-site']);
         $stmt->bindParam(':client'    , $headerArr['x-meta-client']);

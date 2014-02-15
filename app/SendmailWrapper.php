@@ -1,4 +1,5 @@
 <?php
+require_once 'StdinMailParser.php';
 require_once 'ConfigLoader.php';
 
 /**

@@ -1,4 +1,6 @@
 <?php
+defined('APP_ROOT')
+    || define('APP_ROOT', realpath(dirname(__FILE__) . '/..'));
 
 /**
  * Sendmail Wrapper by Onlime Webhosting
@@ -18,10 +20,10 @@ class ConfigLoader
      */
     public function __construct()
     {
-        $globalConfig = '../config.ini';
+        $globalConfig = APP_ROOT . '/config.ini';
         $extraConfigs = array(
-            '../config.local.ini',
-            '../config.private.ini'
+            APP_ROOT . '/config.local.ini',
+            APP_ROOT . '/config.private.ini'
         );
 
         // load global config
@@ -70,7 +72,7 @@ class ConfigLoader
      * @return StdClass
      * @link http://onli.me/array2object
      */
-    protected function _arrayToObject(array $arr)
+    protected function _arrayToObject($arr)
     {
         if (is_array($arr)) {
             /*

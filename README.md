@@ -1,11 +1,29 @@
-sendmail-wrapper
-================
+# sendmail-wrapper
 
 A powerful sendmail wrapper to log and throttle emails send by PHP
 
-# Installation
+## Advantages
 
-## Initial Setup
+- Lets you monitor any mail traffic from PHP scripts
+- Allows throttling (limiting) emails sent by PHP's mail() function
+- Throttle by sent email and/or recipient count per day
+- Logs both to syslog and database with message metadata
+- Logs common mail headers like From, To, Cc, Bcc, Subject
+- Fixes Return-Path header on the fly for users who did not correctly set it
+- Highly secured setup, customers cannot access the logging/throttling database
+- Standalone PHP application without any external library dependencies
+- Built for shared webhosting environment where PHP runs as cgi/FastCGI/suPHP
+- No cronjobs required, sendmail-wrapper will reset counters automatically every day
+
+## Requirements
+
+- PHP 5.4/5.5
+- sendmail compatible MTA: Exim, Postfix,...
+- sudo >= 1.7.5, 1.8+ recommended
+
+## Installation
+
+### Initial Setup
 
 Clone repository from GitHub:
 
@@ -20,6 +38,19 @@ Setup system user for sendmail-wrapper:
 $ adduser --system --home /no/home --no-create-home --uid 6000 --group --disabled-password --disabled-login sendmailwrapper
 $ adduser sendmailwrapper customers
 ```
+
+### Quick Install
+
+The installer script **install.sh** will correctly setup permissions and symlink the wrapper scripts:
+
+```bash
+$ cd /opt/sendmail-wrapper/
+$ ./install.sh
+```
+
+If you wish to run this manually, check the following instructions...
+
+### Manual Install
 
 Set correct permissions:
 
@@ -40,7 +71,7 @@ $ ln -sf /opt/sendmail-wrapper/sendmail-throttle.php /usr/sbin/sendmail-throttle
 $ /bin/cp -a prepend.php /var/www/shared/
 ```
 
-## Setup sudo
+### Setup sudo
 
 Add the following lines to your /etc/sudoers:
 
@@ -49,7 +80,7 @@ www-data        ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle [0-
 %customers      ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle [0-9]*
 ```
 
-## Setup PHP
+### Setup PHP
 
 Add/modify the following in your php.ini:
 
@@ -58,7 +89,7 @@ sendmail_path = /usr/sbin/sendmail-wrapper
 auto_prepend_file = /var/www/shared/prepend.php
 ```
 
-## Setup MySQL
+### Setup MySQL
 
 Import the sendmailwrapper database schema:
 
@@ -74,7 +105,7 @@ GRANT SELECT, INSERT, UPDATE ON sendmailwrapper.throttle TO sendmailwrapper@'loc
 GRANT INSERT ON sendmailwrapper.messages TO sendmailwrapper@'localhost';
 ```
 
-# Configuration
+## Configuration
 
 Default configuration can be found in **config.ini**:
 

@@ -2,3 +2,5 @@
 /config.local.ini
 /config.private.ini
 /doc/db-schema.mwb.bak
+/vendor/
+/composer.phar

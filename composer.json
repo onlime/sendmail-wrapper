@@ -1,0 +1,21 @@
+{
+    "name": "onlime/sendmail-wrapper",
+    "description": "A powerful sendmail wrapper to log and throttle emails sent by PHP",
+    "keywords": ["PHP", "MySQL", "MTA", "sendmail", "wrapper", "throttling"],
+    "homepage": "https://github.com/onlime/sendmail-wrapper",
+    "license": "GPLv2",
+    "authors": [
+        {
+            "name": "Philip Iezzi",
+            "email": "github@onlime.ch",
+            "homepage": "http://www.onlime.ch/",
+            "role": "developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/onlime/sendmail-wrapper/issues"
+    },
+    "require": {
+        "php": ">=5.4.0"
+    }
+}

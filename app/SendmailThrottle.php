@@ -72,32 +72,15 @@ class SendmailThrottle extends StdinMailParser
             // connect to DB
             $this->_connect();
 
+            // default status code: success
+            $status = 0;
+
             $sql = 'SELECT * FROM throttle WHERE username = :username';
             $stmt = $this->_pdo->prepare($sql);
             $stmt->bindParam(':username', $username);
             $stmt->execute();
             $obj = $stmt->fetchObject();
             if ($obj) {
-                $countMax = $obj->count_max;
-                $countCur = ++$obj->count_cur; // raise by 1
-                $countTot = ++$obj->count_tot; // raise by 1
-                $rcptMax  = $obj->rcpt_max;
-                $rcptCur  = $obj->rcpt_cur + $rcptCount; // raise by number of recipients
-                $rcptTot  = $obj->rcpt_tot + $rcptCount; // raise by number of recipients
-
-                // check email count
-                if ($countCur <= $obj->count_max) {
-                    $status = 0;
-                } else {
-                    $status = ($countCur == ($obj->count_max + 1)) ? 1 : 2;
-                }
-                // check recipient count
-                if ($rcptCur <= $obj->rcpt_max) {
-                    $status = 0;
-                } else {
-                    $status = ($rcptCur == ($obj->rcpt_max + 1)) ? 1 : 2;
-                }
-
                 // reset counters on new day (after midnight)
                 $dateUpdated = new DateTime($obj->updated_ts);
                 $dateCurrent = new DateTime();
@@ -105,6 +88,26 @@ class SendmailThrottle extends StdinMailParser
                 if (!$sameDay) {
                     $countCur = 1;
                     $rcptCur  = 1;
+                } else {
+                    $countCur = ++$obj->count_cur;           // raise by 1
+                    $rcptCur  = $obj->rcpt_cur + $rcptCount; // raise by number of recipients
+                }
+
+                $countMax = $obj->count_max;
+                $countTot = ++$obj->count_tot; // raise by 1
+                $rcptMax  = $obj->rcpt_max;
+                $rcptTot  = $obj->rcpt_tot + $rcptCount; // raise by number of recipients
+
+                // check email count
+                if ($countCur > $obj->count_max) {
+                    // return 1 if previous status was 0 (ok), otherwise 2
+                    $status = ($obj->status == 0) ? 1 : 2;
+                }
+
+                // check recipient count
+                if ($rcptCur > $obj->rcpt_max) {
+                    // return 1 if previous status was 0 (ok), otherwise 2
+                    $status = ($obj->status == 0) ? 1 : 2;
                 }
 
                 $sql = 'UPDATE throttle SET updated_ts = NOW(), count_cur = :countCur, count_tot = :countTot,
@@ -137,7 +140,6 @@ class SendmailThrottle extends StdinMailParser
                 $stmt->bindParam(':rcptTot' , $rcptTot , PDO::PARAM_INT);
                 $stmt->execute();
                 $id = $this->_pdo->lastInsertId();
-                $status = 0;
             }
 
             // syslogging

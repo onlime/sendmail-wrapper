@@ -76,8 +76,7 @@ class SendmailWrapper extends StdinMailParser
             'subject' => @$headerArr['subject'],
             'site'    => @$_SERVER["HTTP_HOST"],
             'client'  => @$_SERVER["REMOTE_ADDR"],
-            'script'  => getenv('SCRIPT_FILENAME'),
-            'status'  => $status
+            'script'  => getenv('SCRIPT_FILENAME')
         );
 
         // throttling
@@ -121,7 +120,7 @@ class SendmailWrapper extends StdinMailParser
             $messageInfo['site'],
             $messageInfo['client'],
             $messageInfo['script'],
-            $messageInfo['status']
+            $status
         );
         syslog(LOG_INFO, $syslogMsg);
 

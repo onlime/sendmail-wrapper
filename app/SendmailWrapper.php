@@ -73,6 +73,8 @@ class SendmailWrapper extends StdinMailParser
             'msgid'   => $msgId,
             'from'    => @$headerArr['from'],
             'to'      => @$headerArr['to'],
+            'cc'      => @$headerArr['cc'],
+            'bcc'     => @$headerArr['bcc'],
             'subject' => @$headerArr['subject'],
             'site'    => @$_SERVER["HTTP_HOST"],
             'client'  => @$_SERVER["REMOTE_ADDR"],
@@ -110,12 +112,14 @@ class SendmailWrapper extends StdinMailParser
         }
 
         // message logging to syslog
-        $syslogMsg = sprintf('%s: uid=%s, msgid=%s, from=%s, to=%s, subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
+        $syslogMsg = sprintf('%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
             $this->_conf->wrapper->syslogPrefix,
             $messageInfo['uid'],
             $messageInfo['msgid'],
             $messageInfo['from'],
             $messageInfo['to'],
+            $messageInfo['cc'],
+            $messageInfo['bcc'],
             $messageInfo['subject'],
             $messageInfo['site'],
             $messageInfo['client'],

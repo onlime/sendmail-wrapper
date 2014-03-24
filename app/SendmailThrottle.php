@@ -230,6 +230,10 @@ class SendmailThrottle extends StdinMailParser
      */
     protected function _mimeHeaderDecode($header)
     {
+        return mb_decode_mimeheader($header);
+        //return iconv_mime_decode($header, 0, 'UTF-8');
+
+        /*
         $utf8Header = imap_utf8($header);
         $decoded = imap_mime_header_decode($utf8Header);
         if (isset($decoded[0])) {
@@ -238,5 +242,6 @@ class SendmailThrottle extends StdinMailParser
         } else {
             return $utf8Header;
         }
+        */
     }
 }

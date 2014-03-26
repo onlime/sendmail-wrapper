@@ -117,9 +117,9 @@ class SendmailWrapper extends StdinMailParser
             $messageInfo['uid'],
             $messageInfo['msgid'],
             $messageInfo['from'],
-            $messageInfo['to'],
-            $messageInfo['cc'],
-            $messageInfo['bcc'],
+            $this->stripStrLength($messageInfo['to']),
+            $this->stripStrLength($messageInfo['cc']),
+            $this->stripStrLength($messageInfo['bcc']),
             $messageInfo['subject'],
             $messageInfo['site'],
             $messageInfo['client'],
@@ -174,5 +174,34 @@ class SendmailWrapper extends StdinMailParser
 
         // success
         return $status;
+    }
+
+    /**
+     * Limit a string to a specific length.
+     *
+     * @param string $value
+     * @param int $limit
+     * @param string $suffix
+     * @return string
+     */
+    public function stripStrLength($value, $limit = null, $suffix = null)
+    {
+        if ($limit === null) {
+            // load limit from configuration
+            $limit  = $this->_conf->syslog->stringLengthLimit;
+        }
+        if ($suffix === null) {
+            // load suffix from configuration
+            $suffix = $this->_conf->syslog->stringCutSuffix;
+        }
+
+        $strLen = mb_strlen($value);
+
+        if ($strLen > $limit) {
+            $suffixLen = mb_strlen($suffix);
+            $value = mb_substr($value, 0, $limit - $suffixLen) . $suffix;
+        }
+
+        return $value;
     }
 }

@@ -1,6 +1,17 @@
 <?php
-putenv("HTTP_HOST=".@$_SERVER["HTTP_HOST"]);
-putenv("SCRIPT_NAME=".@$_SERVER["SCRIPT_NAME"]);
-putenv("SCRIPT_FILENAME=".@$_SERVER["SCRIPT_FILENAME"]);
-putenv("DOCUMENT_ROOT=".@$_SERVER["DOCUMENT_ROOT"]);
-putenv("REMOTE_ADDR=".@$_SERVER["REMOTE_ADDR"]);
+// environment variables that should be available in child processes
+$envVars = array(
+    'HTTP_HOST',
+    'SCRIPT_NAME',
+    'SCRIPT_FILENAME',
+    'DOCUMENT_ROOT',
+    'REMOTE_ADDR'
+);
+
+// sanitizing environment variables for Bash ShellShock mitigation
+// (CVE-2014-6271, CVE-2014-7169, CVE-2014-7186, CVE-2014-7187, CVE-2014-6277)
+$sanitizeChars = str_split('(){};');
+foreach ($envVars as $key) {
+    $value = str_replace($sanitizeChars, '', @$_SERVER[$key]);
+    putenv("$key=$value");
+}

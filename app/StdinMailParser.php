@@ -29,6 +29,26 @@ abstract class StdinMailParser
     protected $_body;
 
     /**
+     * Headers that can appear more then once, according to RFC5322
+     * http://tools.ietf.org/html/rfc5322#section-3.6
+     *
+     * @var array
+     */
+    protected $_rfc5322MultiHeaders = array(
+        'trace',
+        'resent-date',
+        'resent-from',
+        'resent-sender',
+        'resent-to',
+        'resent-cc',
+        'resent-bcc',
+        'resent-msg-id',
+        'comments',
+        'keywords',
+        'optional-field'
+    );
+
+    /**
      * Constructor
      */
     public function __construct()
@@ -90,8 +110,17 @@ abstract class StdinMailParser
         $headerLines = explode(PHP_EOL, $this->_header);
         $headerArr   = array();
         foreach ($headerLines as $line) {
-            list($headerKey, $headerValue) = explode(":", $line);
-            $headerArr[strtolower(trim($headerKey))] = trim($headerValue);
+            list($key, $value) = explode(":", $line);
+            $key   = strtolower(trim($key));
+            $value = trim($value);
+            if (isset($headerArr[$key]) && !in_array($key, $this->_rfc5322MultiHeaders)) {
+                // workaround for duplicate headers that should not appear
+                // more than once: simply merge them, comma separated.
+                // This prevents spammers to tamper with our recipient counting.
+                $headerArr[$key] .= ', ' . $value;
+            } else {
+                $headerArr[$key] = $value;
+            }
         }
 
         return $headerArr;

@@ -80,7 +80,7 @@ class ConfigLoader
             * Using __FUNCTION__ (Magic constant)
             * for recursive call
             */
-            return (object)array_map(array(self, __FUNCTION__), $arr);
+            return (object)array_map(array($this, __FUNCTION__), $arr);
         } else {
             // Return object
             return $arr;

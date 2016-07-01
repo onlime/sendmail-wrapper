@@ -1,4 +1,4 @@
-#!/usr/bin/env php -n
+#!/usr/bin/php -n
 <?php
 /**
  * Sendmail Wrapper by Onlime Webhosting

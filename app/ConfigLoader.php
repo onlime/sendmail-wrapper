@@ -72,7 +72,7 @@ class ConfigLoader
      * @return StdClass
      * @link http://onli.me/array2object
      */
-    protected function _arrayToObject($arr)
+    protected function _arrayToObject(array $arr)
     {
         if (is_array($arr)) {
             /*

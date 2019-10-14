@@ -65,6 +65,7 @@ class SendmailThrottle extends StdinMailParser
      * @param string $username
      * @param int $rcptCount number of recipients
      * @return int exit status code (0 = success)
+     * @throws Exception
      */
     public function run($username, $rcptCount)
     {

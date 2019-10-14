@@ -58,8 +58,6 @@ abstract class StdinMailParser
 
     /**
      * Run sendmail wrapper
-     *
-     * @return int exit status code (0 = success)
      */
     public function init()
     {

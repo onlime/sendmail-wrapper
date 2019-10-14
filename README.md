@@ -17,7 +17,7 @@ A powerful sendmail wrapper to log and throttle emails sent by PHP
 
 ## Requirements
 
-- PHP 5.4/5.5
+- PHP 7.2+
 - sendmail compatible MTA: Exim, Postfix,...
 - sudo >= 1.7.5, 1.8+ recommended
 

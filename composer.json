@@ -19,6 +19,7 @@
         "php": ">=7.2.0",
         "ext-mbstring": "*",
         "ext-pdo": "*",
-        "ext-imap": "*"
+        "ext-imap": "*",
+        "ext-json": "*"
     }
 }

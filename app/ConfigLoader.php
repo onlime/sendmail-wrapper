@@ -39,7 +39,7 @@ class ConfigLoader
             }
         }
 
-        $this->_conf = $this->_arrayToObject($config);
+        $this->_conf = $this->arrayToObject($config);
 
         $this->init();
     }
@@ -70,20 +70,10 @@ class ConfigLoader
      *
      * @param array $arr
      * @return StdClass
-     * @link http://onli.me/array2object
+     * @link https://stackoverflow.com/a/9185337
      */
-    protected function _arrayToObject(array $arr)
+    protected function arrayToObject(array $arr)
     {
-        if (is_array($arr)) {
-            /*
-            * Return array converted to object
-            * Using __FUNCTION__ (Magic constant)
-            * for recursive call
-            */
-            return (object)array_map([$this, __FUNCTION__], $arr);
-        } else {
-            // Return object
-            return $arr;
-        }
+        return json_decode(json_encode($arr));
     }
 }

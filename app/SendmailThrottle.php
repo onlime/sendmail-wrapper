@@ -3,10 +3,10 @@ require_once 'StdinMailParser.php';
 require_once 'ConfigLoader.php';
 
 /**
- * Sendmail Wrapper by Onlime Webhosting
+ * Sendmail Wrapper by Onlime GmbH webhosting services
  * https://github.com/onlime/sendmail-wrapper
  *
- * @copyright  Copyright (c) 2007-2014 Onlime Webhosting (http://www.onlime.ch)
+ * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
 class SendmailThrottle extends StdinMailParser
 {
@@ -99,7 +99,7 @@ class SendmailThrottle extends StdinMailParser
                 $rcptTot  = $obj->rcpt_tot + $rcptCount; // raise by number of recipients
 
                 // check email count
-                if ($countCur > $obj->count_max) {
+                if ($countCur > $countMax) {
                     // return 1 if previous status was 0 (ok), otherwise 2
                     $status = ($obj->status == 0) ? 1 : 2;
                 }

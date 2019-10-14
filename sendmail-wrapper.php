@@ -1,10 +1,10 @@
 #!/usr/bin/php
 <?php
 /**
- * Sendmail Wrapper by Onlime Webhosting
+ * Sendmail Wrapper by Onlime GmbH webhosting services
  * https://github.com/onlime/sendmail-wrapper
  *
- * @copyright  Copyright (c) 2007-2014 Onlime Webhosting (http://www.onlime.ch)
+ * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
 
 require_once 'app/SendmailWrapper.php';

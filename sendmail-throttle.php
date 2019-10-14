@@ -1,4 +1,4 @@
-#!/usr/bin/php
+#!/usr/bin/php -d auto_prepend_file=
 <?php
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services

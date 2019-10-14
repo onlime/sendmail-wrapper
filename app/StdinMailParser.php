@@ -21,7 +21,7 @@ abstract class StdinMailParser
     /**
      * @var array
      */
-    protected $_additionalHeaders = array();
+    protected $_additionalHeaders = [];
 
     /**
      * @var string
@@ -34,7 +34,7 @@ abstract class StdinMailParser
      *
      * @var array
      */
-    protected $_rfc5322MultiHeaders = array(
+    protected $_rfc5322MultiHeaders = [
         'trace',
         'resent-date',
         'resent-from',
@@ -46,7 +46,7 @@ abstract class StdinMailParser
         'comments',
         'keywords',
         'optional-field'
-    );
+    ];
 
     /**
      * Constructor
@@ -106,7 +106,7 @@ abstract class StdinMailParser
     public function getParsedHeaderArr()
     {
         $headerLines = explode(PHP_EOL, $this->_header);
-        $headerArr   = array();
+        $headerArr   = [];
         foreach ($headerLines as $line) {
             list($key, $value) = explode(":", $line);
             $key   = strtolower(trim($key));

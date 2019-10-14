@@ -21,10 +21,10 @@ class ConfigLoader
     public function __construct()
     {
         $globalConfig = APP_ROOT . '/config.ini';
-        $extraConfigs = array(
+        $extraConfigs = [
             APP_ROOT . '/config.local.ini',
             APP_ROOT . '/config.private.ini'
-        );
+        ];
 
         // load global config
         $config = parse_ini_file($globalConfig, true);
@@ -80,7 +80,7 @@ class ConfigLoader
             * Using __FUNCTION__ (Magic constant)
             * for recursive call
             */
-            return (object)array_map(array($this, __FUNCTION__), $arr);
+            return (object)array_map([$this, __FUNCTION__], $arr);
         } else {
             // Return object
             return $arr;

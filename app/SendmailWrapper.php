@@ -60,7 +60,7 @@ class SendmailWrapper extends StdinMailParser
 
         // count total number of recipients
         $rcptCount   = 0;
-        $rcptHeaders = array('to', 'cc', 'bcc');
+        $rcptHeaders = ['to', 'cc', 'bcc'];
         foreach ($rcptHeaders as $rcptHeader) {
             if (isset($headerArr[$rcptHeader])) {
                 // parse recipient headers according to RFC2822 (http://www.faqs.org/rfcs/rfc2822.html)
@@ -68,7 +68,7 @@ class SendmailWrapper extends StdinMailParser
             }
         }
 
-        $messageInfo   = array(
+        $messageInfo   = [
             'uid'     => `whoami`,
             'msgid'   => $msgId,
             'from'    => @$headerArr['from'],
@@ -79,7 +79,7 @@ class SendmailWrapper extends StdinMailParser
             'site'    => @$_SERVER["HTTP_HOST"],
             'client'  => @$_SERVER["REMOTE_ADDR"],
             'script'  => getenv('SCRIPT_FILENAME')
-        );
+        ];
 
         // throttling
         if ($throttleOn) {
@@ -92,15 +92,15 @@ class SendmailWrapper extends StdinMailParser
             // redirect STDIN data to throttle command
             // We're going to use the whole email message including some
             // extra headers.
-            $throttleMsg = $this->buildMessage(array(
+            $throttleMsg = $this->buildMessage([
                 'X-Meta-MsgID'  => $messageInfo['msgid'],
                 'X-Meta-Site'   => $messageInfo['site'],
                 'X-Meta-Client' => $messageInfo['client'],
                 'X-Meta-Script' => $messageInfo['script'],
-            ));
-            $descriptorSpec = array(
-                0 => array('pipe', 'r')
-            );
+            ]);
+            $descriptorSpec = [
+                0 => ['pipe', 'r']
+            ];
             $proc = proc_open($throttleCmd, $descriptorSpec, $pipes);
             if (is_resource($proc)) {
                 fwrite($pipes[0], $throttleMsg);

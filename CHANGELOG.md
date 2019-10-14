@@ -2,11 +2,12 @@
 
 ## 1.0.3 (2019-10-14)
 
-- Fix for PHP setup where extensions are not compiled-in, loaded as modules. Standard php.ini is now loaded.
+- Fix for PHP setup where extensions are not compiled-in, loaded as modules. Standard php.ini is now loaded. fixes #1, #4
 - Code style: replaced traditional syntax array literals
 - Code smells: fixes various minor code smells
 - Pushed minimum required PHP version to 7.2
 - Improved array to object conversion in ConfigLoader by using json_encode/decode trick.
+- Removed DEFAULT values for TEXT columns in MySQL sendmailwrapper.messages table, fixes #5
 
 ## 1.0.2 (2015-11-04)
 

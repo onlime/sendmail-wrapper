@@ -212,37 +212,14 @@ class SendmailThrottle extends StdinMailParser
         $stmt->bindParam(':rcptCount' , $rcptCount);
         $stmt->bindParam(':status'    , $status);
         $stmt->bindParam(':msgid'     , $headerArr['x-meta-msgid']);
-        $stmt->bindParam(':fromAddr'  , $this->_mimeHeaderDecode($headerArr['from']));
-        $stmt->bindParam(':toAddr'    , $this->_mimeHeaderDecode($headerArr['to']));
-        $stmt->bindParam(':ccAddr'    , $this->_mimeHeaderDecode($headerArr['cc']));
-        $stmt->bindParam(':bccAddr'   , $this->_mimeHeaderDecode($headerArr['bcc']));
-        $stmt->bindParam(':subject'   , $this->_mimeHeaderDecode($headerArr['subject']));
+        $stmt->bindParam(':fromAddr'  , mb_decode_mimeheader($headerArr['from']));
+        $stmt->bindParam(':toAddr'    , mb_decode_mimeheader($headerArr['to']));
+        $stmt->bindParam(':ccAddr'    , mb_decode_mimeheader($headerArr['cc']));
+        $stmt->bindParam(':bccAddr'   , mb_decode_mimeheader($headerArr['bcc']));
+        $stmt->bindParam(':subject'   , mb_decode_mimeheader($headerArr['subject']));
         $stmt->bindParam(':site'      , $headerArr['x-meta-site']);
         $stmt->bindParam(':client'    , $headerArr['x-meta-client']);
         $stmt->bindParam(':script'    , $headerArr['x-meta-script']);
         $stmt->execute();
-    }
-
-    /**
-     * Decode MIME header elements
-     *
-     * @param string $header
-     * @return string
-     */
-    protected function _mimeHeaderDecode($header)
-    {
-        return mb_decode_mimeheader($header);
-        //return iconv_mime_decode($header, 0, 'UTF-8');
-
-        /*
-        $utf8Header = imap_utf8($header);
-        $decoded = imap_mime_header_decode($utf8Header);
-        if (isset($decoded[0])) {
-            $decodedObj = $decoded[0];
-            return $decodedObj->text;
-        } else {
-            return $utf8Header;
-        }
-        */
     }
 }

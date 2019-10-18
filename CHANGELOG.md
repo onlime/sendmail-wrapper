@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.0.4 (2019-10-18)
+
+- Ensure auto_prepend_file (prepend.php) is not loaded in sendmail-wrapper as it would override the passed env vars
+- Fix PHP Notices 'Only variables should be passed by reference' in SendmailThrottle message logging
+
 ## 1.0.3 (2019-10-14)
 
 - Fix for PHP setup where extensions are not compiled-in, loaded as modules. Standard php.ini is now loaded. fixes #1, #4

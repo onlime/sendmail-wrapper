@@ -199,6 +199,11 @@ class SendmailThrottle extends StdinMailParser
     protected function _logMessage($throttleId, $username, $rcptCount, $status)
     {
         $headerArr = $this->getParsedHeaderArr();
+        $from    = mb_decode_mimeheader($headerArr['from'] ?? null);
+        $to      = mb_decode_mimeheader($headerArr['to'] ?? null);
+        $cc      = mb_decode_mimeheader($headerArr['cc'] ?? null);
+        $bcc     = mb_decode_mimeheader($headerArr['bcc'] ?? null);
+        $subject = mb_decode_mimeheader($headerArr['subject'] ?? null);
 
         $sql = 'INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from_addr, to_addr,
                   cc_addr, bcc_addr, subject, site, client, script)
@@ -212,11 +217,11 @@ class SendmailThrottle extends StdinMailParser
         $stmt->bindParam(':rcptCount' , $rcptCount);
         $stmt->bindParam(':status'    , $status);
         $stmt->bindParam(':msgid'     , $headerArr['x-meta-msgid']);
-        $stmt->bindParam(':fromAddr'  , mb_decode_mimeheader($headerArr['from']));
-        $stmt->bindParam(':toAddr'    , mb_decode_mimeheader($headerArr['to']));
-        $stmt->bindParam(':ccAddr'    , mb_decode_mimeheader($headerArr['cc']));
-        $stmt->bindParam(':bccAddr'   , mb_decode_mimeheader($headerArr['bcc']));
-        $stmt->bindParam(':subject'   , mb_decode_mimeheader($headerArr['subject']));
+        $stmt->bindParam(':fromAddr'  , $from);
+        $stmt->bindParam(':toAddr'    , $to);
+        $stmt->bindParam(':ccAddr'    , $cc);
+        $stmt->bindParam(':bccAddr'   , $bcc);
+        $stmt->bindParam(':subject'   , $subject);
         $stmt->bindParam(':site'      , $headerArr['x-meta-site']);
         $stmt->bindParam(':client'    , $headerArr['x-meta-client']);
         $stmt->bindParam(':script'    , $headerArr['x-meta-script']);

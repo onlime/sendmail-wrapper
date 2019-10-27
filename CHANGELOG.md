@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.5 (unreleased)
+
+- Fix for newline after `whoami` shell output, which broke message logging to syslog.
+
 ## 1.0.4 (2019-10-18)
 
 - Ensure auto_prepend_file (prepend.php) is not loaded in sendmail-wrapper as it would override the passed env vars

@@ -69,7 +69,7 @@ class SendmailWrapper extends StdinMailParser
         }
 
         $messageInfo   = [
-            'uid'     => `whoami`,
+            'uid'     => trim(shell_exec('whoami')),
             'msgid'   => $msgId,
             'from'    => @$headerArr['from'],
             'to'      => @$headerArr['to'],

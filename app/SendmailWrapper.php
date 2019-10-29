@@ -1,6 +1,7 @@
 <?php
 require_once 'StdinMailParser.php';
 require_once 'ConfigLoader.php';
+require_once 'SendmailThrottle.php';
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services
@@ -34,7 +35,7 @@ class SendmailWrapper extends StdinMailParser
      */
     public function run()
     {
-        $status = 0;
+        $status = SendmailThrottle::STATUS_OK;
 
         // get config variables
         $sendmailCmd   = $this->_conf->wrapper->sendmailCmd;
@@ -126,10 +127,14 @@ class SendmailWrapper extends StdinMailParser
             $messageInfo['script'],
             $status
         );
-        syslog(LOG_INFO, $syslogMsg);
+        // Don't write to syslog for blocked useraccounts - we still have all meta information in messages
+        // table but don't want to fill up syslog.
+        if ($status != SendmailThrottle::STATUS_BLOCKED) {
+            syslog(LOG_INFO, $syslogMsg);
+        }
 
         // terminate if message limit exceeded
-        if ($throttleOn && $status > 0) {
+        if ($throttleOn && $status > SendmailThrottle::STATUS_OK) {
             // return exit status
             return $status;
         }

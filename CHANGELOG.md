@@ -1,8 +1,9 @@
 # CHANGELOG
 
-## 1.0.5 (unreleased)
+## 1.0.5 (2019-10-29)
 
 - Fix for newline after `whoami` shell output, which broke message logging to syslog.
+- Introduce new configuration flag `throttle.blocked` to completely block a user without changing his limits and without reporting to admin.
 
 ## 1.0.4 (2019-10-18)
 

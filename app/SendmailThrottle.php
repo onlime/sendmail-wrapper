@@ -10,6 +10,12 @@ require_once 'ConfigLoader.php';
  */
 class SendmailThrottle extends StdinMailParser
 {
+    const STATUS_OK = 0;
+    const STATUS_QUOTA_REACHED = 1;
+    const STATUS_OVERQUOTA = 2;
+    const STATUS_BLOCKED = 3;
+    const STATUS_EXCEPTION = 4;
+
     /**
      * @var StdClass
      */
@@ -60,7 +66,7 @@ class SendmailThrottle extends StdinMailParser
      *
      * status code 0: limit not reached, ok
      * status code 1: limit reached, sending notification to admin
-     * status code 2: limit succeeded, do not warn admin multiple times
+     * status code 2: over limit, do not warn admin multiple times
      *
      * @param string $username
      * @param int $rcptCount number of recipients
@@ -74,41 +80,35 @@ class SendmailThrottle extends StdinMailParser
             $this->_connect();
 
             // default status code: success
-            $status = 0;
+            $status = self::STATUS_OK;
 
             $sql = 'SELECT * FROM throttle WHERE username = :username';
             $stmt = $this->_pdo->prepare($sql);
             $stmt->bindParam(':username', $username);
             $stmt->execute();
-            $obj = $stmt->fetchObject();
-            if ($obj) {
+            $throttle = $stmt->fetchObject();
+            if ($throttle) {
                 // reset counters on new day (after midnight)
-                $dateUpdated = new DateTime($obj->updated_ts);
+                $dateUpdated = new DateTime($throttle->updated_ts);
                 $dateCurrent = new DateTime();
                 $sameDay = ($dateUpdated->format('Y-m-d') == $dateCurrent->format('Y-m-d'));
                 if (!$sameDay) {
                     $countCur = 1;
                     $rcptCur  = 1;
                 } else {
-                    $countCur = ++$obj->count_cur;           // raise by 1
-                    $rcptCur  = $obj->rcpt_cur + $rcptCount; // raise by number of recipients
+                    $countCur = ++$throttle->count_cur;           // raise by 1
+                    $rcptCur  = $throttle->rcpt_cur + $rcptCount; // raise by number of recipients
                 }
 
-                $countMax = $obj->count_max;
-                $countTot = ++$obj->count_tot; // raise by 1
-                $rcptMax  = $obj->rcpt_max;
-                $rcptTot  = $obj->rcpt_tot + $rcptCount; // raise by number of recipients
+                $countMax = $throttle->count_max;
+                $countTot = ++$throttle->count_tot; // raise by 1
+                $rcptMax  = $throttle->rcpt_max;
+                $rcptTot  = $throttle->rcpt_tot + $rcptCount; // raise by number of recipients
 
-                // check email count
-                if ($countCur > $countMax) {
+                // check email or recipient count
+                if ($countCur > $countMax || $rcptCur > $rcptMax) {
                     // return 1 if previous status was 0 (ok), otherwise 2
-                    $status = ($obj->status == 0) ? 1 : 2;
-                }
-
-                // check recipient count
-                if ($rcptCur > $obj->rcpt_max) {
-                    // return 1 if previous status was 0 (ok), otherwise 2
-                    $status = ($obj->status == 0) ? 1 : 2;
+                    $status = ($throttle->status == self::STATUS_OK) ? self::STATUS_QUOTA_REACHED : self::STATUS_OVERQUOTA;
                 }
 
                 $sql = 'UPDATE throttle SET updated_ts = NOW(), count_cur = :countCur, count_tot = :countTot,
@@ -122,7 +122,12 @@ class SendmailThrottle extends StdinMailParser
                 $stmt->bindParam(':status'  , $status  , PDO::PARAM_INT);
                 $stmt->bindParam(':username', $username);
                 $stmt->execute();
-                $id = $obj->id;
+                $id = $throttle->id;
+
+                // if user is blocked, override previous status by return code 3
+                if ($throttle->blocked) {
+                    $status = self::STATUS_BLOCKED;
+                }
             } else {
                 $countMax = $this->_conf->throttle->countMax;
                 $countCur = 1;
@@ -161,12 +166,16 @@ class SendmailThrottle extends StdinMailParser
                 $rcptCur,
                 $rcptTot
             );
-            syslog(LOG_INFO, $syslogMsg);
+            // Don't write to syslog for blocked useraccounts - we still have all meta information in messages
+            // table but don't want to fill up syslog.
+            if ($status != self::STATUS_BLOCKED) {
+                syslog(LOG_INFO, $syslogMsg);
+            }
 
-            // Report message limit succeeded to administrator
-            if ($status == 1) {
-                // Do not report on status code 2, as the admin only wants to get
-                // notified once!
+            // Report message limit reached to administrator
+            if ($status == self::STATUS_QUOTA_REACHED) {
+                // Do not report on status code 2, as the admin only wants to get notified once!
+                // Also, he is never interested in blocked accounts (status code 3).
                 mail(
                     $this->_conf->global->adminTo,
                     $this->_conf->throttle->adminSubject,
@@ -175,15 +184,13 @@ class SendmailThrottle extends StdinMailParser
                 );
             }
 
-            // write to db log
+            // write all meta information to db messages log
             $this->_logMessage($id, $username, $rcptCount, $status);
 
-            // return status code
             return $status;
-
         } catch (PDOException $e) {
             syslog(LOG_WARNING, sprintf('%s: PDOException: %s', $this->_conf->throttle->syslogPrefix, $e->getMessage()));
-            return 3;
+            return self::STATUS_EXCEPTION;
         }
     }
 

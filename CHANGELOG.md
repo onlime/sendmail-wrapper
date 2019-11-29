@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.6 (UNRELEASED)
+
+- Avoid PHP Notices on non-standard mail header lines that don't contain a column, reporting warning to syslog.
+
 ## 1.0.5 (2019-10-29)
 
 - Fix for newline after `whoami` shell output, which broke message logging to syslog.

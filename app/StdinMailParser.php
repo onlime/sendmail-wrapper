@@ -108,7 +108,11 @@ abstract class StdinMailParser
         $headerLines = explode(PHP_EOL, $this->_header);
         $headerArr   = [];
         foreach ($headerLines as $line) {
-            list($key, $value) = explode(":", $line);
+            list($key, $value) = @explode(":", $line);
+            if (is_null($value)) {
+                // avoid 'PHP Notice:  Undefined offset: 1' on header line without colon
+                syslog(LOG_WARNING, sprintf('%s: Could not parse mail header line: %s', __METHOD__, $line));
+            }
             $key   = strtolower(trim($key));
             $value = trim($value);
             if (isset($headerArr[$key]) && !in_array($key, $this->_rfc5322MultiHeaders)) {

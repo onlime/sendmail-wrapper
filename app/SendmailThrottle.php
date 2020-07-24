@@ -212,10 +212,10 @@ class SendmailThrottle extends StdinMailParser
         $bcc     = mb_decode_mimeheader($headerArr['bcc'] ?? null);
         $subject = mb_decode_mimeheader($headerArr['subject'] ?? null);
 
-        $sql = 'INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from_addr, to_addr,
-                  cc_addr, bcc_addr, subject, site, client, script)
+        $sql = "INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from_addr, to_addr,
+                  cc_addr, bcc_addr, subject, site, client, sender_host, script)
                 VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :fromAddr, :toAddr,
-                  :ccAddr, :bccAddr, :subject, :site, :client, :script)';
+                  :ccAddr, :bccAddr, :subject, :site, :client, SUBSTRING_INDEX(USER(), '@', -1), :script)";
         $stmt = $this->_pdo->prepare($sql);
         $stmt->bindParam(':throttleId', $throttleId);
         $stmt->bindParam(':username'  , $username);

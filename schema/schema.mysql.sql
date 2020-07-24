@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS `sendmailwrapper`.`messages` (
   `subject` VARCHAR(255) NOT NULL DEFAULT '' COMMENT 'email subject',
   `site` VARCHAR(255) NOT NULL DEFAULT '' COMMENT 'site where this email was sent from',
   `client` VARCHAR(40) NULL COMMENT 'client IP that invoked the email generation',
+  `sender_host` VARCHAR(255) NOT NULL DEFAULT 'localhost',
   `script` VARCHAR(255) NULL COMMENT 'script that generated this email',
   PRIMARY KEY (`id`),
   INDEX `fk_messages_throttle_idx` (`throttle_id` ASC),

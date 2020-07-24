@@ -1,8 +1,9 @@
 # CHANGELOG
 
-## 1.0.6 (UNRELEASED)
+## 1.0.6 (2020-07-24)
 
 - Avoid PHP Notices on non-standard mail header lines that don't contain a column, reporting warning to syslog.
+- Add `sender_host` to `messages` table, reporting the connected sendmail-wrapper hostname, in case the MySQL database is located on a remote host and sendmail-wrapper is deployed to multiple hosts.
 
 ## 1.0.5 (2019-10-29)
 

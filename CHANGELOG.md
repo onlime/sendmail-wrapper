@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.7 (UNRELEASED)
+
+- Added config option `trottle.ignoreExceptions` to ignore exceptions while throttling, allowing fail safety if e.g. db server goes away.
+
 ## 1.0.6 (2020-07-24)
 
 - Avoid PHP Notices on non-standard mail header lines that don't contain a column, reporting warning to syslog.

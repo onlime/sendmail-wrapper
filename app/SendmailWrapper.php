@@ -38,11 +38,12 @@ class SendmailWrapper extends StdinMailParser
         $status = SendmailThrottle::STATUS_OK;
 
         // get config variables
-        $sendmailCmd   = $this->_conf->wrapper->sendmailCmd;
-        $throttleCmd   = $this->_conf->wrapper->throttleCmd;
-        $throttleOn    = (bool) $this->_conf->wrapper->throttleOn;
-        $xHeaderPrefix = $this->_conf->wrapper->xHeaderPrefix;
-        $defaultHost   = $this->_conf->wrapper->defaultHost;
+        $sendmailCmd      = $this->_conf->wrapper->sendmailCmd;
+        $throttleCmd      = $this->_conf->wrapper->throttleCmd;
+        $throttleOn       = (bool) $this->_conf->wrapper->throttleOn;
+        $xHeaderPrefix    = $this->_conf->wrapper->xHeaderPrefix;
+        $defaultHost      = $this->_conf->wrapper->defaultHost;
+        $ignoreExceptions = (bool) $this->_conf->throttle->ignoreExceptions;
 
         // generate an RFC-compliant Message-ID
         // RFC 2822 (http://www.faqs.org/rfcs/rfc2822.html)
@@ -113,7 +114,8 @@ class SendmailWrapper extends StdinMailParser
         }
 
         // message logging to syslog
-        $syslogMsg = sprintf('%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
+        $syslogMsg = sprintf(
+            '%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
             $this->_conf->wrapper->syslogPrefix,
             $messageInfo['uid'],
             $messageInfo['msgid'],
@@ -134,7 +136,7 @@ class SendmailWrapper extends StdinMailParser
         }
 
         // terminate if message limit exceeded
-        if ($throttleOn && $status > SendmailThrottle::STATUS_OK) {
+        if ($throttleOn && $status > SendmailThrottle::STATUS_OK && !($ignoreExceptions && $status == SendmailThrottle::STATUS_EXCEPTION)) {
             // return exit status
             return $status;
         }

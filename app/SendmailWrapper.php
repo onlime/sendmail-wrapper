@@ -136,9 +136,13 @@ class SendmailWrapper extends StdinMailParser
         }
 
         // terminate if message limit exceeded
-        if ($throttleOn && $status > SendmailThrottle::STATUS_OK && !($ignoreExceptions && $status == SendmailThrottle::STATUS_EXCEPTION)) {
-            // return exit status
-            return $status;
+        if ($throttleOn && $status > SendmailThrottle::STATUS_OK) {
+            if ($ignoreExceptions && $status == SendmailThrottle::STATUS_EXCEPTION) {
+                $status = SendmailThrottle::STATUS_OK;
+            } else {
+                // return exit status
+                return $status;
+            }
         }
 
         // get arguments

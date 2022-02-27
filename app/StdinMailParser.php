@@ -1,4 +1,5 @@
 <?php
+require_once 'ConfigLoader.php';
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services
@@ -9,32 +10,37 @@
 abstract class StdinMailParser
 {
     /**
-     * @var string
+     * @var StdClass
      */
-    protected $_data = '';
+    protected $conf;
 
     /**
      * @var string
      */
-    protected $_header;
+    protected $data = '';
+
+    /**
+     * @var string
+     */
+    protected $header;
 
     /**
      * @var array
      */
-    protected $_additionalHeaders = [];
+    protected $additionalHeaders = [];
 
     /**
      * @var string
      */
-    protected $_body;
+    protected $body;
 
     /**
-     * Headers that can appear more then once, according to RFC5322
+     * Headers that can appear more than once, according to RFC5322
      * http://tools.ietf.org/html/rfc5322#section-3.6
      *
      * @var array
      */
-    protected $_rfc5322MultiHeaders = [
+    protected $rfc5322MultiHeaders = [
         'trace',
         'resent-date',
         'resent-from',
@@ -53,6 +59,7 @@ abstract class StdinMailParser
      */
     public function __construct()
     {
+        $this->conf = (new ConfigLoader())->getConfig();
         $this->init();
     }
 
@@ -71,20 +78,10 @@ abstract class StdinMailParser
         $data = str_replace("\r\n", PHP_EOL, $data);
 
         // split out headers
-        list($this->_header, $this->_body) = explode(PHP_EOL . PHP_EOL, $data, 2);
+        [$this->header, $this->body] = explode(PHP_EOL . PHP_EOL, $data, 2);
 
         // store original STDIN data for later retrieval
-        $this->_data = $data;
-    }
-
-    /**
-     * Get STDIN data.
-     *
-     * @return string
-     */
-    public function getData()
-    {
-        return $this->_data;
+        $this->data = $data;
     }
 
     /**
@@ -95,7 +92,7 @@ abstract class StdinMailParser
      */
     public function setHeader($name, $value)
     {
-        $this->_additionalHeaders[$name] = $value;
+        $this->additionalHeaders[$name] = $value;
     }
 
     /**
@@ -105,7 +102,7 @@ abstract class StdinMailParser
      */
     public function getParsedHeaderArr()
     {
-        $headerLines = explode(PHP_EOL, $this->_header);
+        $headerLines = explode(PHP_EOL, $this->header);
         $headerArr   = [];
         foreach ($headerLines as $line) {
             @list($key, $value) = explode(":", $line, 2);
@@ -115,7 +112,7 @@ abstract class StdinMailParser
             }
             $key   = strtolower(trim($key));
             $value = trim($value);
-            if (isset($headerArr[$key]) && !in_array($key, $this->_rfc5322MultiHeaders)) {
+            if (isset($headerArr[$key]) && !in_array($key, $this->rfc5322MultiHeaders)) {
                 // workaround for duplicate headers that should not appear
                 // more than once: simply merge them, comma separated.
                 // This prevents spammers to tamper with our recipient counting.
@@ -131,16 +128,16 @@ abstract class StdinMailParser
     /**
      * Re-assemble the email message from its header and body parts.
      *
-     * @param array $extraHeaders add extra headers only for this method call
+     * @param array|null $extraHeaders add extra headers only for this method call
      * @return string
      */
     public function buildMessage(array $extraHeaders = null)
     {
-        $header = $this->_header;
+        $header = $this->header;
 
         // add all additional headers after the original ones
-        if ($this->_additionalHeaders) {
-            foreach ($this->_additionalHeaders as $name => $value) {
+        if ($this->additionalHeaders) {
+            foreach ($this->additionalHeaders as $name => $value) {
                 $header .= PHP_EOL . $name . ": " . $value;
             }
         }
@@ -153,6 +150,6 @@ abstract class StdinMailParser
         }
 
         // reassemble the message
-        return $header . PHP_EOL . PHP_EOL . $this->_body;
+        return $header . PHP_EOL . PHP_EOL . $this->body;
     }
 }

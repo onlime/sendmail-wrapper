@@ -1,6 +1,5 @@
 <?php
 require_once 'StdinMailParser.php';
-require_once 'ConfigLoader.php';
 require_once 'SendmailThrottle.php';
 
 /**
@@ -12,23 +11,6 @@ require_once 'SendmailThrottle.php';
 class SendmailWrapper extends StdinMailParser
 {
     /**
-     * @var StdClass
-     */
-    protected $_conf;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
-    {
-        // load configuration
-        $configLoader = new ConfigLoader();
-        $this->_conf  = $configLoader->getConfig();
-
-        parent::__construct();
-    }
-
-    /**
      * Run sendmail wrapper
      *
      * @return int exit status code (0 = success)
@@ -38,12 +20,12 @@ class SendmailWrapper extends StdinMailParser
         $status = SendmailThrottle::STATUS_OK;
 
         // get config variables
-        $sendmailCmd      = $this->_conf->wrapper->sendmailCmd;
-        $throttleCmd      = $this->_conf->wrapper->throttleCmd;
-        $throttleOn       = (bool) $this->_conf->wrapper->throttleOn;
-        $xHeaderPrefix    = $this->_conf->wrapper->xHeaderPrefix;
-        $defaultHost      = $this->_conf->wrapper->defaultHost;
-        $ignoreExceptions = (bool) $this->_conf->throttle->ignoreExceptions;
+        $sendmailCmd      = $this->conf->wrapper->sendmailCmd;
+        $throttleCmd      = $this->conf->wrapper->throttleCmd;
+        $throttleOn       = (bool) $this->conf->wrapper->throttleOn;
+        $xHeaderPrefix    = $this->conf->wrapper->xHeaderPrefix;
+        $defaultHost      = $this->conf->wrapper->defaultHost;
+        $ignoreExceptions = (bool) $this->conf->throttle->ignoreExceptions;
 
         // generate an RFC-compliant Message-ID
         // RFC 2822 (http://www.faqs.org/rfcs/rfc2822.html)
@@ -80,7 +62,7 @@ class SendmailWrapper extends StdinMailParser
             'subject' => @$headerArr['subject'],
             'site'    => @$_SERVER["HTTP_HOST"],
             'client'  => @$_SERVER["REMOTE_ADDR"],
-            'script'  => getenv('SCRIPT_FILENAME')
+            'script'  => getenv('SCRIPT_FILENAME'),
         ];
 
         // throttling
@@ -116,7 +98,7 @@ class SendmailWrapper extends StdinMailParser
         // message logging to syslog
         $syslogMsg = sprintf(
             '%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
-            $this->_conf->wrapper->syslogPrefix,
+            $this->conf->wrapper->syslogPrefix,
             $messageInfo['uid'],
             $messageInfo['msgid'],
             $messageInfo['from'],
@@ -153,9 +135,9 @@ class SendmailWrapper extends StdinMailParser
         // Force adding envelope sender address (sendmail -r/-f parameters)
         // For security reasons, we check if the Return-Path or From email addresses
         // are valid, prior to passing them to -r.
-        if (preg_match('/^\-r/', $allArgs) || false !== strstr($allArgs, ' -r')) {
+        if (preg_match('/^-r/', $allArgs) || false !== strstr($allArgs, ' -r')) {
             // -r parameter was found, no changes
-        } elseif (preg_match('/^\-f/', $allArgs) || false !== strstr($allArgs, ' -f')) {
+        } elseif (preg_match('/^-f/', $allArgs) || false !== strstr($allArgs, ' -f')) {
             // -f parameter was found, no changes
         } else {
             // use Return-Path as -r parameter
@@ -199,11 +181,11 @@ class SendmailWrapper extends StdinMailParser
     {
         if ($limit === null) {
             // load limit from configuration
-            $limit  = $this->_conf->syslog->stringLengthLimit;
+            $limit  = $this->conf->syslog->stringLengthLimit;
         }
         if ($suffix === null) {
             // load suffix from configuration
-            $suffix = $this->_conf->syslog->stringCutSuffix;
+            $suffix = $this->conf->syslog->stringCutSuffix;
         }
 
         $strLen = mb_strlen($value);

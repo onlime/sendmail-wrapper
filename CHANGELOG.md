@@ -1,8 +1,13 @@
 # CHANGELOG
 
-## 1.0.7 (UNRELEASED)
+## 1.0.x (UNRELEASED)
+
+## 1.0.7 (2022-02-27)
 
 - Added config option `trottle.ignoreExceptions` to ignore exceptions while throttling, allowing fail safety if e.g. db server goes away.
+- Added a limit to `explode()` to prevent the truncation of IPv6 addresses in the x-meta-client header. #7 by @skysky6
+- Pushed minimum required PHP version to 7.3
+- Minor code cleanup
 
 ## 1.0.6 (2020-07-24)
 

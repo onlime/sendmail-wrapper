@@ -9,6 +9,5 @@
 
 require_once 'app/SendmailWrapper.php';
 
-$sendmailWrapper = new SendmailWrapper();
-$status = $sendmailWrapper->run();
+$status = (new SendmailWrapper())->run();
 exit($status);

@@ -14,6 +14,5 @@ $username  = $_SERVER['SUDO_USER'];
 $rcptCount = (int) @$argv[1];
 
 // do throttling
-$sendmailThrottle = new SendmailThrottle();
-$status = $sendmailThrottle->run($username, $rcptCount);
+$status = (new SendmailThrottle())->run($username, $rcptCount);
 exit($status);

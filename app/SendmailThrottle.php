@@ -1,6 +1,5 @@
 <?php
 require_once 'StdinMailParser.php';
-require_once 'ConfigLoader.php';
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services
@@ -17,26 +16,9 @@ class SendmailThrottle extends StdinMailParser
     const STATUS_EXCEPTION = 4;
 
     /**
-     * @var StdClass
-     */
-    protected $_conf;
-
-    /**
      * @var PDO
      */
-    protected $_pdo;
-
-    /**
-     * Constructor
-     */
-    public function __construct()
-    {
-        // load configuration
-        $configLoader = new ConfigLoader();
-        $this->_conf  = $configLoader->getConfig();
-
-        parent::__construct();
-    }
+    protected $pdo;
 
     /**
      * Destructor
@@ -44,7 +26,7 @@ class SendmailThrottle extends StdinMailParser
      */
     public function __destruct()
     {
-        $this->_pdo = null;
+        $this->pdo = null;
     }
 
     /**
@@ -52,12 +34,12 @@ class SendmailThrottle extends StdinMailParser
      *
      * @throws PDOException
      */
-    protected function _connect()
+    protected function connect()
     {
-        $this->_pdo = new PDO(
-            $this->_conf->db->dsn,
-            $this->_conf->db->user,
-            $this->_conf->db->pass
+        $this->pdo = new PDO(
+            $this->conf->db->dsn,
+            $this->conf->db->user,
+            $this->conf->db->pass
         );
     }
 
@@ -77,13 +59,13 @@ class SendmailThrottle extends StdinMailParser
     {
         try {
             // connect to DB
-            $this->_connect();
+            $this->connect();
 
             // default status code: success
             $status = self::STATUS_OK;
 
             $sql = 'SELECT * FROM throttle WHERE username = :username';
-            $stmt = $this->_pdo->prepare($sql);
+            $stmt = $this->pdo->prepare($sql);
             $stmt->bindParam(':username', $username);
             $stmt->execute();
             $throttle = $stmt->fetchObject();
@@ -114,7 +96,7 @@ class SendmailThrottle extends StdinMailParser
                 $sql = 'UPDATE throttle SET updated_ts = NOW(), count_cur = :countCur, count_tot = :countTot,
                         rcpt_cur = :rcptCur, rcpt_tot = :rcptTot, status = :status
                         WHERE username = :username';
-                $stmt = $this->_pdo->prepare($sql);
+                $stmt = $this->pdo->prepare($sql);
                 $stmt->bindParam(':countCur', $countCur, PDO::PARAM_INT);
                 $stmt->bindParam(':countTot', $countTot, PDO::PARAM_INT);
                 $stmt->bindParam(':rcptCur' , $rcptCur , PDO::PARAM_INT);
@@ -129,30 +111,30 @@ class SendmailThrottle extends StdinMailParser
                     $status = self::STATUS_BLOCKED;
                 }
             } else {
-                $countMax = $this->_conf->throttle->countMax;
+                $countMax = $this->conf->throttle->countMax;
                 $countCur = 1;
                 $countTot = 1;
-                $rcptMax  = $this->_conf->throttle->rcptMax;
+                $rcptMax  = $this->conf->throttle->rcptMax;
                 $rcptCur  = $rcptCount;
                 $rcptTot  = $rcptCount;
 
                 $sql = 'INSERT INTO throttle (updated_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot)
                         VALUES (NOW(), :username, :countMax, :rcptMax, :rcptCur, :rcptTot)';
-                $stmt = $this->_pdo->prepare($sql);
+                $stmt = $this->pdo->prepare($sql);
                 $stmt->bindParam(':username', $username);
                 $stmt->bindParam(':countMax', $countMax, PDO::PARAM_INT);
                 $stmt->bindParam(':rcptMax' , $rcptMax , PDO::PARAM_INT);
                 $stmt->bindParam(':rcptCur' , $rcptCur , PDO::PARAM_INT);
                 $stmt->bindParam(':rcptTot' , $rcptTot , PDO::PARAM_INT);
                 $stmt->execute();
-                $id = $this->_pdo->lastInsertId();
+                $id = $this->pdo->lastInsertId();
             }
 
             // syslogging
             $syslogMsg =  sprintf('%s: user=%s (%s:%s), rcpts=%s, status=%s, command=%s, ' .
                 'count_max=%s, count_cur=%s, count_tot=%s, ' .
                 'rcpt_max=%s, rcpt_cur=%s, rcpt_tot=%s',
-                $this->_conf->throttle->syslogPrefix,
+                $this->conf->throttle->syslogPrefix,
                 $username,
                 $_SERVER['SUDO_UID'],
                 $_SERVER['SUDO_GID'],
@@ -177,19 +159,19 @@ class SendmailThrottle extends StdinMailParser
                 // Do not report on status code 2, as the admin only wants to get notified once!
                 // Also, he is never interested in blocked accounts (status code 3).
                 mail(
-                    $this->_conf->global->adminTo,
-                    $this->_conf->throttle->adminSubject,
+                    $this->conf->global->adminTo,
+                    $this->conf->throttle->adminSubject,
                     $syslogMsg,
-                    "From: " . $this->_conf->global->adminFrom
+                    "From: " . $this->conf->global->adminFrom
                 );
             }
 
             // write all meta information to db messages log
-            $this->_logMessage($id, $username, $rcptCount, $status);
+            $this->logMessage($id, $username, $rcptCount, $status);
 
             return $status;
         } catch (PDOException $e) {
-            syslog(LOG_WARNING, sprintf('%s: PDOException: %s', $this->_conf->throttle->syslogPrefix, $e->getMessage()));
+            syslog(LOG_WARNING, sprintf('%s: PDOException: %s', $this->conf->throttle->syslogPrefix, $e->getMessage()));
             return self::STATUS_EXCEPTION;
         }
     }
@@ -203,7 +185,7 @@ class SendmailThrottle extends StdinMailParser
      * @param int $rcptCount
      * @param int $status
      */
-    protected function _logMessage($throttleId, $username, $rcptCount, $status)
+    protected function logMessage($throttleId, $username, $rcptCount, $status)
     {
         $headerArr = $this->getParsedHeaderArr();
         $from    = mb_decode_mimeheader($headerArr['from'] ?? null);
@@ -216,7 +198,7 @@ class SendmailThrottle extends StdinMailParser
                   cc_addr, bcc_addr, subject, site, client, sender_host, script)
                 VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :fromAddr, :toAddr,
                   :ccAddr, :bccAddr, :subject, :site, :client, SUBSTRING_INDEX(USER(), '@', -1), :script)";
-        $stmt = $this->_pdo->prepare($sql);
+        $stmt = $this->pdo->prepare($sql);
         $stmt->bindParam(':throttleId', $throttleId);
         $stmt->bindParam(':username'  , $username);
         $stmt->bindParam(':uid'       , $_SERVER['SUDO_UID']);

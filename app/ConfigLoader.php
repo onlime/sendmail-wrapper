@@ -13,7 +13,7 @@ class ConfigLoader
     /**
      * @var StdClass
      */
-    protected $_conf;
+    protected $conf;
 
     /**
      * Constructor
@@ -23,7 +23,7 @@ class ConfigLoader
         $globalConfig = APP_ROOT . '/config.ini';
         $extraConfigs = [
             APP_ROOT . '/config.local.ini',
-            APP_ROOT . '/config.private.ini'
+            APP_ROOT . '/config.private.ini',
         ];
 
         // load global config
@@ -39,7 +39,7 @@ class ConfigLoader
             }
         }
 
-        $this->_conf = $this->arrayToObject($config);
+        $this->conf = $this->arrayToObject($config);
 
         $this->init();
     }
@@ -51,7 +51,7 @@ class ConfigLoader
     {
         // assure the default timezone is set
         if (!ini_get('date.timezone')) {
-            date_default_timezone_set($this->_conf->global->defaultTZ);
+            date_default_timezone_set($this->conf->global->defaultTZ);
         }
     }
 
@@ -62,7 +62,7 @@ class ConfigLoader
      */
     public function getConfig()
     {
-        return $this->_conf;
+        return $this->conf;
     }
 
     /**

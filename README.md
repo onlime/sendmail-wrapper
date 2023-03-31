@@ -5,14 +5,14 @@ A powerful sendmail wrapper to log and throttle emails sent by PHP
 ## Advantages
 
 - Lets you monitor any mail traffic from PHP scripts
-- Allows throttling (limiting) emails sent by PHP's mail() function
+- Allows throttling (limiting) emails sent by PHP's `mail()` function
 - Throttle by sent email and/or recipient count per day
 - Logs both to syslog and database with message metadata
-- Logs common mail headers like From, To, Cc, Bcc, Subject
-- Fixes Return-Path header on the fly for users who did not correctly set it
+- Logs common mail headers like `From`, `To`, `Cc`, `Bcc`, `Subject`
+- Fixes `Return-Path` header on the fly for users who did not correctly set it
 - Highly secured setup, customers cannot access the logging/throttling database
 - Standalone PHP application without any external library dependencies
-- Built for shared webhosting environment where PHP runs as cgi/FastCGI/suPHP
+- Built for shared webhosting environments where PHP runs in PHP-FPM (FastCGI Process Manager) mode
 - No cronjobs required, sendmail-wrapper will reset counters automatically every day
 
 ## Requirements
@@ -20,6 +20,8 @@ A powerful sendmail wrapper to log and throttle emails sent by PHP
 - PHP 7.4+
 - sendmail compatible MTA: Exim, Postfix,...
 - sudo 1.8+
+
+> Currently, sendmail-wrapper is tested and actively used by [Onlime GmbH](https://www.onlime.ch/) on shared webhosting environments with PHP 8.0, 8.1, and 8.2.
 
 ## Installation
 

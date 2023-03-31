@@ -1,0 +1,21 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "braces": false,
+        "blank_line_before_statement": false,
+        "class_definition": false,
+        "binary_operator_spaces": false,
+        "concat_space": false,
+        "no_unused_imports": false,
+        "Laravel/laravel_phpdoc_alignment": false,
+        "phpdoc_separation": false,
+        "class_attributes_separation": false,
+        "modernize_strpos": true,
+        "no_superfluous_phpdoc_tags": false
+    },
+    "exclude": [
+        "node_modules",
+        "tmp"
+    ],
+    "cache-file": ".pint.cache.json"
+}

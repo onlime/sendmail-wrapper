@@ -1,4 +1,5 @@
 <?php
+
 require_once 'StdinMailParser.php';
 require_once 'SendmailThrottle.php';
 
@@ -31,7 +32,7 @@ class SendmailWrapper extends StdinMailParser
         // RFC 2822 (http://www.faqs.org/rfcs/rfc2822.html)
         $msgId = sprintf(
             '%s.%s@%s',
-            date("YmdHis"),
+            date('YmdHis'),
             base_convert(mt_rand(), 10, 36),
             $defaultHost
         );
@@ -60,8 +61,8 @@ class SendmailWrapper extends StdinMailParser
             'cc'      => @$headerArr['cc'],
             'bcc'     => @$headerArr['bcc'],
             'subject' => @$headerArr['subject'],
-            'site'    => @$_SERVER["HTTP_HOST"],
-            'client'  => @$_SERVER["REMOTE_ADDR"],
+            'site'    => @$_SERVER['HTTP_HOST'],
+            'client'  => @$_SERVER['REMOTE_ADDR'],
             'script'  => getenv('SCRIPT_FILENAME'),
         ];
 
@@ -83,7 +84,7 @@ class SendmailWrapper extends StdinMailParser
                 'X-Meta-Script' => $messageInfo['script'],
             ]);
             $descriptorSpec = [
-                0 => ['pipe', 'r']
+                0 => ['pipe', 'r'],
             ];
             $proc = proc_open($throttleCmd, $descriptorSpec, $pipes);
             if (is_resource($proc)) {
@@ -157,7 +158,7 @@ class SendmailWrapper extends StdinMailParser
         $data = $this->buildMessage();
 
         // pass email to the original sendmail binary
-        $h = popen($sendmailCmd, "w");
+        $h = popen($sendmailCmd, 'w');
         fwrite($h, $data);
         pclose($h);
 

@@ -1,4 +1,5 @@
 <?php
+
 require_once 'ConfigLoader.php';
 
 /**
@@ -34,7 +35,7 @@ abstract class StdinMailParser
         'resent-msg-id',
         'comments',
         'keywords',
-        'optional-field'
+        'optional-field',
     ];
 
     public function __construct()
@@ -50,7 +51,7 @@ abstract class StdinMailParser
     {
         // read STDIN (complete mail message)
         $data = '';
-        while (!feof(STDIN)) {
+        while (! feof(STDIN)) {
             $data .= fread(STDIN, 1024);
         }
 
@@ -80,14 +81,14 @@ abstract class StdinMailParser
         $headerLines = explode(PHP_EOL, $this->header);
         $headerArr   = [];
         foreach ($headerLines as $line) {
-            @list($key, $value) = explode(":", $line, 2);
+            @[$key, $value] = explode(':', $line, 2);
             if (is_null($value)) {
                 // avoid 'PHP Notice:  Undefined offset: 1' on header line without colon
                 syslog(LOG_WARNING, sprintf('%s: Could not parse mail header line: %s', __METHOD__, $line));
             }
             $key   = strtolower(trim($key));
             $value = trim($value);
-            if (isset($headerArr[$key]) && !in_array($key, $this->rfc5322MultiHeaders)) {
+            if (isset($headerArr[$key]) && ! in_array($key, $this->rfc5322MultiHeaders)) {
                 // workaround for duplicate headers that should not appear
                 // more than once: simply merge them, comma separated.
                 // This prevents spammers to tamper with our recipient counting.
@@ -113,14 +114,14 @@ abstract class StdinMailParser
         // add all additional headers after the original ones
         if ($this->additionalHeaders) {
             foreach ($this->additionalHeaders as $name => $value) {
-                $header .= PHP_EOL . $name . ": " . $value;
+                $header .= PHP_EOL . $name . ': ' . $value;
             }
         }
 
         // these are "on-the-fly" headers that are only used temporarily
         if ($extraHeaders) {
             foreach ($extraHeaders as $name => $value) {
-                $header .= PHP_EOL . $name . ": " . $value;
+                $header .= PHP_EOL . $name . ': ' . $value;
             }
         }
 

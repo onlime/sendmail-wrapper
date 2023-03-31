@@ -6,7 +6,6 @@
  *
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
-
 require_once 'app/SendmailThrottle.php';
 
 // extract main parameters

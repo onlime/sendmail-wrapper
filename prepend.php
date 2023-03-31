@@ -1,11 +1,12 @@
 <?php
+
 // environment variables that should be available in child processes
 $envVars = [
     'HTTP_HOST',
     'SCRIPT_NAME',
     'SCRIPT_FILENAME',
     'DOCUMENT_ROOT',
-    'REMOTE_ADDR'
+    'REMOTE_ADDR',
 ];
 
 // sanitizing environment variables for Bash ShellShock mitigation

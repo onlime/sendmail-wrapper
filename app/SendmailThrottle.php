@@ -1,4 +1,5 @@
 <?php
+
 require_once 'StdinMailParser.php';
 
 /**
@@ -71,7 +72,7 @@ class SendmailThrottle extends StdinMailParser
                 $dateUpdated = new DateTime($throttle->updated_ts);
                 $dateCurrent = new DateTime();
                 $sameDay = ($dateUpdated->format('Y-m-d') == $dateCurrent->format('Y-m-d'));
-                if (!$sameDay) {
+                if (! $sameDay) {
                     $countCur = 1;
                     $rcptCur  = 1;
                 } else {
@@ -96,9 +97,9 @@ class SendmailThrottle extends StdinMailParser
                 $stmt = $this->pdo->prepare($sql);
                 $stmt->bindParam(':countCur', $countCur, PDO::PARAM_INT);
                 $stmt->bindParam(':countTot', $countTot, PDO::PARAM_INT);
-                $stmt->bindParam(':rcptCur' , $rcptCur , PDO::PARAM_INT);
-                $stmt->bindParam(':rcptTot' , $rcptTot , PDO::PARAM_INT);
-                $stmt->bindParam(':status'  , $status  , PDO::PARAM_INT);
+                $stmt->bindParam(':rcptCur', $rcptCur, PDO::PARAM_INT);
+                $stmt->bindParam(':rcptTot', $rcptTot, PDO::PARAM_INT);
+                $stmt->bindParam(':status', $status, PDO::PARAM_INT);
                 $stmt->bindParam(':username', $username);
                 $stmt->execute();
                 $id = $throttle->id;
@@ -120,9 +121,9 @@ class SendmailThrottle extends StdinMailParser
                 $stmt = $this->pdo->prepare($sql);
                 $stmt->bindParam(':username', $username);
                 $stmt->bindParam(':countMax', $countMax, PDO::PARAM_INT);
-                $stmt->bindParam(':rcptMax' , $rcptMax , PDO::PARAM_INT);
-                $stmt->bindParam(':rcptCur' , $rcptCur , PDO::PARAM_INT);
-                $stmt->bindParam(':rcptTot' , $rcptTot , PDO::PARAM_INT);
+                $stmt->bindParam(':rcptMax', $rcptMax, PDO::PARAM_INT);
+                $stmt->bindParam(':rcptCur', $rcptCur, PDO::PARAM_INT);
+                $stmt->bindParam(':rcptTot', $rcptTot, PDO::PARAM_INT);
                 $stmt->execute();
                 $id = $this->pdo->lastInsertId();
             }
@@ -159,7 +160,7 @@ class SendmailThrottle extends StdinMailParser
                     $this->conf->global->adminTo,
                     $this->conf->throttle->adminSubject,
                     $syslogMsg,
-                    "From: " . $this->conf->global->adminFrom
+                    'From: ' . $this->conf->global->adminFrom
                 );
             }
 
@@ -197,20 +198,20 @@ class SendmailThrottle extends StdinMailParser
                   :ccAddr, :bccAddr, :subject, :site, :client, SUBSTRING_INDEX(USER(), '@', -1), :script)";
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindParam(':throttleId', $throttleId);
-        $stmt->bindParam(':username'  , $username);
-        $stmt->bindParam(':uid'       , $_SERVER['SUDO_UID']);
-        $stmt->bindParam(':gid'       , $_SERVER['SUDO_GID']);
-        $stmt->bindParam(':rcptCount' , $rcptCount);
-        $stmt->bindParam(':status'    , $status);
-        $stmt->bindParam(':msgid'     , $headerArr['x-meta-msgid']);
-        $stmt->bindParam(':fromAddr'  , $from);
-        $stmt->bindParam(':toAddr'    , $to);
-        $stmt->bindParam(':ccAddr'    , $cc);
-        $stmt->bindParam(':bccAddr'   , $bcc);
-        $stmt->bindParam(':subject'   , $subject);
-        $stmt->bindParam(':site'      , $headerArr['x-meta-site']);
-        $stmt->bindParam(':client'    , $headerArr['x-meta-client']);
-        $stmt->bindParam(':script'    , $headerArr['x-meta-script']);
+        $stmt->bindParam(':username', $username);
+        $stmt->bindParam(':uid', $_SERVER['SUDO_UID']);
+        $stmt->bindParam(':gid', $_SERVER['SUDO_GID']);
+        $stmt->bindParam(':rcptCount', $rcptCount);
+        $stmt->bindParam(':status', $status);
+        $stmt->bindParam(':msgid', $headerArr['x-meta-msgid']);
+        $stmt->bindParam(':fromAddr', $from);
+        $stmt->bindParam(':toAddr', $to);
+        $stmt->bindParam(':ccAddr', $cc);
+        $stmt->bindParam(':bccAddr', $bcc);
+        $stmt->bindParam(':subject', $subject);
+        $stmt->bindParam(':site', $headerArr['x-meta-site']);
+        $stmt->bindParam(':client', $headerArr['x-meta-client']);
+        $stmt->bindParam(':script', $headerArr['x-meta-script']);
         $stmt->execute();
     }
 }

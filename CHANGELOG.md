@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## 1.0.x (UNRELEASED)
+## 1.1.0 (2023-03-31)
+
+- Breaking change: Moved sendmail command-line options `-t -i` from Sendmail-wrapper config (`sendmailCmd` in `config.ini`) to the recommended `sendmail_path` configuration in `php.ini` to avoid problems with Symfony Mailer. see [Upgrading](README.md#upgrading) notes for details.
+- Dropping support for PHP < 7.4
+- Cleanup: Added type declaratinos to function arguments, return values
 
 ## 1.0.7 (2022-02-27)
 

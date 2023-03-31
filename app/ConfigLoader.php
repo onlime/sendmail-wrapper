@@ -10,14 +10,8 @@ defined('APP_ROOT')
  */
 class ConfigLoader
 {
-    /**
-     * @var StdClass
-     */
-    protected $conf;
+    protected StdClass $conf;
 
-    /**
-     * Constructor
-     */
     public function __construct()
     {
         $globalConfig = APP_ROOT . '/config.ini';
@@ -39,41 +33,25 @@ class ConfigLoader
             }
         }
 
-        $this->conf = $this->arrayToObject($config);
+        // recursively convert array to object
+        $this->conf = json_decode(json_encode($config), false);
 
         $this->init();
     }
 
-    /**
-     * Initialize
-     */
     public function init()
     {
         // assure the default timezone is set
-        if (!ini_get('date.timezone')) {
+        if (! ini_get('date.timezone')) {
             date_default_timezone_set($this->conf->global->defaultTZ);
         }
     }
 
     /**
      * Get configuration object.
-     *
-     * @return StdClass
      */
-    public function getConfig()
+    public function getConfig(): StdClass
     {
         return $this->conf;
-    }
-
-    /**
-     * Recursively converts an array to a StdClass object.
-     *
-     * @param array $arr
-     * @return StdClass
-     * @link https://stackoverflow.com/a/9185337
-     */
-    protected function arrayToObject(array $arr)
-    {
-        return json_decode(json_encode($arr));
     }
 }

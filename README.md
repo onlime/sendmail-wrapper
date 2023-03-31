@@ -17,9 +17,9 @@ A powerful sendmail wrapper to log and throttle emails sent by PHP
 
 ## Requirements
 
-- PHP 7.2+
+- PHP 7.4+
 - sendmail compatible MTA: Exim, Postfix,...
-- sudo >= 1.7.5, 1.8+ recommended
+- sudo 1.8+
 
 ## Installation
 
@@ -28,8 +28,7 @@ A powerful sendmail wrapper to log and throttle emails sent by PHP
 Clone repository from GitHub:
 
 ```bash
-$ cd /opt/
-$ git clone https://github.com/onlime/sendmail-wrapper.git sendmail-wrapper
+$ git clone https://github.com/onlime/sendmail-wrapper.git /opt/sendmail-wrapper
 ```
 
 Setup system user for sendmail-wrapper:
@@ -41,7 +40,7 @@ $ adduser sendmailwrapper customers
 
 ### Quick Install
 
-The installer script **install.sh** will correctly setup permissions and symlink the wrapper scripts:
+The installer script **install.sh** will correctly set up permissions and symlink the wrapper scripts:
 
 ```bash
 $ cd /opt/sendmail-wrapper/
@@ -85,9 +84,14 @@ www-data        ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle [0-
 Add/modify the following in your php.ini:
 
 ```ini
-sendmail_path = /usr/sbin/sendmail-wrapper
+sendmail_path = "/usr/sbin/sendmail-wrapper -t -i"
 auto_prepend_file = /var/www/shared/prepend.php
 ```
+
+> **NOTE:**
+> It is recommended to put the default `-t -i` options in the `sendmail_path` directive of your php.ini instead of appending them directly to the `sendmailCmd` config option in your `config.local.ini`.
+>
+> This way, it won't break any projects that use [Symfony Mailer](https://github.com/symfony/mailer/) component which actually checks for `-bs` or `-t` in `sendmail_path`. (see [SendmailTransport.php](https://github.com/symfony/mailer/blob/6.2/Transport/SendmailTransport.php#L57-L59))
 
 ### Setup MySQL
 
@@ -116,7 +120,7 @@ adminTo = hostmaster@example.com
 adminFrom = hostmaster@example.com
 
 [wrapper]
-sendmailCmd = "/usr/sbin/sendmail -t -i"
+sendmailCmd = "/usr/sbin/sendmail"
 throttleCmd ="sudo -u sendmailwrapper /usr/sbin/sendmail-throttle"
 throttleOn = true
 defaultHost = "example.com"
@@ -135,7 +139,7 @@ user = sendmailwrapper
 pass = "xxxxxxxxxxxxxxxxxxxxx"
 ```
 
-You should not change any of the above values. Create your own **config.local.ini** instead to overwrite some values, e.g.:
+You should not change any of the above values. Create your own `config.local.ini` instead to overwrite some values, e.g.:
 
 ```ini
 [global]
@@ -147,9 +151,27 @@ defaultHost = "mydomain.com"
 xHeaderPrefix = "X-MyCompany-"
 ```
 
-Never put your database password in any of the above configuration files. Use another configuration file called **config.private.ini** instead, e.g.:
+Never put your database password in any of the above configuration files. Use another configuration file called `config.private.ini` instead, e.g.:
 
 ```ini
 [db]
 pass = "mySuper-SecurePassword/826.4287+foo"
+```
+
+## Upgrading
+
+### Upgrade from 1.0.x to 1.1.x
+
+To avoid problems with projects that use [Symfony Mailer](https://github.com/symfony/mailer/) (Laravel's [Mail](https://laravel.com/docs/10.x/mail) component also uses Symfony Mailer under the hood!), we have moved the default sendmail command-line options `-t -i` from Sendmail-wrapper's configuration `config.ini` to the recommended `sendmail_path` directive in `php.ini`.
+If you stick with our default configuration, you need to update your `php.ini`:
+
+```diff
+- sendmail_path = /usr/sbin/sendmail-wrapper
++ sendmail_path = "/usr/sbin/sendmail-wrapper -t -i"
+```
+
+If you don't care about Symfony Mailer or any other mailer components that check for `-t` existence in `sendmail_path`, you can keep the old `php.ini` configuration and add this to your `config.local.ini`:
+
+```ini
+sendmailCmd = "/usr/sbin/sendmail -t -i"
 ```

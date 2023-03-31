@@ -15,7 +15,7 @@ class SendmailWrapper extends StdinMailParser
      *
      * @return int exit status code (0 = success)
      */
-    public function run()
+    public function run(): int
     {
         $status = SendmailThrottle::STATUS_OK;
 
@@ -127,7 +127,7 @@ class SendmailWrapper extends StdinMailParser
             }
         }
 
-        // get arguments
+        // get arguments from $_SERVER global (as register_argc_argv might be disabled)
         $argv = $_SERVER['argv'];
         array_shift($argv);
         $allArgs = implode(' ', $argv);
@@ -135,17 +135,13 @@ class SendmailWrapper extends StdinMailParser
         // Force adding envelope sender address (sendmail -r/-f parameters)
         // For security reasons, we check if the Return-Path or From email addresses
         // are valid, prior to passing them to -r.
-        if (preg_match('/^-r/', $allArgs) || false !== strstr($allArgs, ' -r')) {
-            // -r parameter was found, no changes
-        } elseif (preg_match('/^-f/', $allArgs) || false !== strstr($allArgs, ' -f')) {
-            // -f parameter was found, no changes
-        } else {
-            // use Return-Path as -r parameter
+        if (! in_array('-f', $argv) && ! in_array('-r', $argv)) {
             if (isset($headerArr['return-path']) && filter_var($headerArr['return-path'], FILTER_VALIDATE_EMAIL)) {
+                // use Return-Path as -r parameter
                 $sendmailCmd .= ' -r ' . $headerArr['return-path'];
                 $this->setHeader($xHeaderPrefix . 'EnvSender', 'Return-Path');
-                // use From as -r parameter
             } elseif (isset($headerArr['from']) && filter_var($headerArr['from'], FILTER_VALIDATE_EMAIL)) {
+                // use From as -r parameter
                 $sendmailCmd .= ' -r ' . $headerArr['from'];
                 $this->setHeader($xHeaderPrefix . 'EnvSender', 'From');
             }
@@ -165,28 +161,16 @@ class SendmailWrapper extends StdinMailParser
         fwrite($h, $data);
         pclose($h);
 
-        // success
         return $status;
     }
 
     /**
      * Limit a string to a specific length.
-     *
-     * @param string $value
-     * @param int $limit
-     * @param string $suffix
-     * @return string
      */
-    public function stripStrLength($value, $limit = null, $suffix = null)
+    public function stripStrLength(string $value, int $limit = null, string $suffix = null): string
     {
-        if ($limit === null) {
-            // load limit from configuration
-            $limit  = $this->conf->syslog->stringLengthLimit;
-        }
-        if ($suffix === null) {
-            // load suffix from configuration
-            $suffix = $this->conf->syslog->stringCutSuffix;
-        }
+        $limit  = $limit ?? $this->conf->syslog->stringLengthLimit;
+        $suffix = $suffix ?? $this->conf->syslog->stringCutSuffix;
 
         $strLen = mb_strlen($value);
 

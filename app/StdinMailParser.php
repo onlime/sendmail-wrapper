@@ -9,38 +9,21 @@ require_once 'ConfigLoader.php';
  */
 abstract class StdinMailParser
 {
-    /**
-     * @var StdClass
-     */
-    protected $conf;
+    protected StdClass $conf;
 
-    /**
-     * @var string
-     */
-    protected $data = '';
+    protected string $data = '';
 
-    /**
-     * @var string
-     */
-    protected $header;
+    protected string $header;
 
-    /**
-     * @var array
-     */
-    protected $additionalHeaders = [];
+    protected array $additionalHeaders = [];
 
-    /**
-     * @var string
-     */
-    protected $body;
+    protected string $body;
 
     /**
      * Headers that can appear more than once, according to RFC5322
      * http://tools.ietf.org/html/rfc5322#section-3.6
-     *
-     * @var array
      */
-    protected $rfc5322MultiHeaders = [
+    protected array $rfc5322MultiHeaders = [
         'trace',
         'resent-date',
         'resent-from',
@@ -54,9 +37,6 @@ abstract class StdinMailParser
         'optional-field'
     ];
 
-    /**
-     * Constructor
-     */
     public function __construct()
     {
         $this->conf = (new ConfigLoader())->getConfig();
@@ -86,21 +66,16 @@ abstract class StdinMailParser
 
     /**
      * Set an additional header.
-     *
-     * @param string $name
-     * @param string $value
      */
-    public function setHeader($name, $value)
+    public function setHeader(string $name, string $value)
     {
         $this->additionalHeaders[$name] = $value;
     }
 
     /**
      * Parse original mail headers into an array.
-     *
-     * @return array
      */
-    public function getParsedHeaderArr()
+    public function getParsedHeaderArr(): array
     {
         $headerLines = explode(PHP_EOL, $this->header);
         $headerArr   = [];
@@ -131,7 +106,7 @@ abstract class StdinMailParser
      * @param array|null $extraHeaders add extra headers only for this method call
      * @return string
      */
-    public function buildMessage(array $extraHeaders = null)
+    public function buildMessage(array $extraHeaders = null): string
     {
         $header = $this->header;
 

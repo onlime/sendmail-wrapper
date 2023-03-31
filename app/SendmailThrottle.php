@@ -15,10 +15,7 @@ class SendmailThrottle extends StdinMailParser
     const STATUS_BLOCKED = 3;
     const STATUS_EXCEPTION = 4;
 
-    /**
-     * @var PDO
-     */
-    protected $pdo;
+    protected ?PDO $pdo;
 
     /**
      * Destructor
@@ -55,7 +52,7 @@ class SendmailThrottle extends StdinMailParser
      * @return int exit status code (0 = success)
      * @throws Exception
      */
-    public function run($username, $rcptCount)
+    public function run(string $username, int $rcptCount): int
     {
         try {
             // connect to DB
@@ -185,7 +182,7 @@ class SendmailThrottle extends StdinMailParser
      * @param int $rcptCount
      * @param int $status
      */
-    protected function logMessage($throttleId, $username, $rcptCount, $status)
+    protected function logMessage(int $throttleId, string $username, int $rcptCount, int $status)
     {
         $headerArr = $this->getParsedHeaderArr();
         $from    = mb_decode_mimeheader($headerArr['from'] ?? null);

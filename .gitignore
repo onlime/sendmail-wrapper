@@ -4,3 +4,4 @@
 /doc/db-schema.mwb.bak
 /vendor/
 /composer.phar
+/composer.lock

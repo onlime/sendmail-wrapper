@@ -86,7 +86,7 @@ www-data        ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle [0-
 Add/modify the following in your php.ini:
 
 ```ini
-sendmail_path = "/usr/sbin/sendmail-wrapper -t -i"
+sendmail_path = /usr/sbin/sendmail-wrapper -t -i
 auto_prepend_file = /var/www/shared/prepend.php
 ```
 
@@ -169,7 +169,7 @@ If you stick with our default configuration, you need to update your `php.ini`:
 
 ```diff
 - sendmail_path = /usr/sbin/sendmail-wrapper
-+ sendmail_path = "/usr/sbin/sendmail-wrapper -t -i"
++ sendmail_path = /usr/sbin/sendmail-wrapper -t -i
 ```
 
 If you don't care about Symfony Mailer or any other mailer components that check for `-t` existence in `sendmail_path`, you can keep the old `php.ini` configuration and add this to your `config.local.ini`:

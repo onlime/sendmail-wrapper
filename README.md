@@ -20,9 +20,9 @@ A powerful sendmail wrapper to log and throttle emails sent by PHP
 - PHP 8.2+ (CLI, `/usr/bin/php`) with extensions `mbstring`, `pdo_mysql` and `posix`
 - sendmail compatible MTA: Exim, Postfix,...
 - sudo 1.9.10+ (Debian 12+), for regular expressions in sudoers
-- MySQL 5.7+ or MariaDB
+- MySQL 8.0+ (or Percona Server) or MariaDB 11.8+
 
-> Currently, sendmail-wrapper is tested and actively used by [Onlime GmbH](https://www.onlime.ch/) on shared webhosting environments with PHP 8.2, 8.3, 8.4 and 8.5.
+> Currently, sendmail-wrapper is tested and actively used by [Onlime GmbH](https://www.onlime.ch/) on shared webhosting environments with PHP 8.2, 8.3, 8.4 and 8.5, and tested with MySQL 8.0, 8.4, 9.7 and MariaDB 11.8, 12.3.
 >
 > `prepend.php` is prepended to every PHP request of every PHP version installed on your server and therefore still supports PHP 7.4+.
 

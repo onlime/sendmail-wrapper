@@ -6,55 +6,6 @@ use Onlime\SendmailWrapper\Message;
 use Onlime\SendmailWrapper\SendmailThrottle;
 use Onlime\SendmailWrapper\ThrottleStatus;
 
-const THROTTLE_MAIL = "From: =?UTF-8?Q?M=C3=BCller?= <sender@example.com>\nTo: a@example.com, b@example.com\n"
-    . "Subject: =?UTF-8?B?SMOkbGxv?=\nX-Meta-MsgID: 20261107120000.abc@example.com\nX-Meta-Site: www.example.com\n"
-    . "X-Meta-Client: 192.0.2.1\nX-Meta-Script: /var/www/index.php\n\nBody\n";
-
-function throttleDb(): PDO
-{
-    $pdo = new PDO('sqlite::memory:');
-    $pdo->exec(file_get_contents(__DIR__ . '/Fixtures/schema.sqlite.sql'));
-
-    return $pdo;
-}
-
-/**
- * @return array{status: ThrottleStatus, log: list<array{int, string}>, mails: list<list<string>>}
- */
-function runThrottle(
-    PDO $pdo,
-    int $rcptCount = 2,
-    string $now = '2026-11-07 12:00:00',
-    string $username = 'web1',
-    string $data = THROTTLE_MAIL,
-    array $config = [],
-): array {
-    $log = $mails = [];
-    $throttle = new SendmailThrottle(
-        testConfig(array_replace_recursive(['throttle' => ['countMax' => 3, 'rcptMax' => 10]], $config)),
-        new Message($data),
-        $pdo,
-        ['SUDO_UID' => '1001', 'SUDO_GID' => '1002', 'SUDO_COMMAND' => '/usr/sbin/sendmail-throttle 2'],
-        new DateTimeImmutable($now),
-        function (int $priority, string $message) use (&$log) {
-            $log[] = [$priority, $message];
-        },
-        function (string ...$args) use (&$mails) {
-            $mails[] = $args;
-        },
-    );
-
-    return ['status' => $throttle->run($username, $rcptCount), 'log' => $log, 'mails' => $mails];
-}
-
-function throttleRow(PDO $pdo, string $username = 'web1'): array
-{
-    $stmt = $pdo->prepare('SELECT * FROM throttle WHERE username = ?');
-    $stmt->execute([$username]);
-
-    return $stmt->fetch(PDO::FETCH_ASSOC);
-}
-
 it('creates a throttle record for new users with the configured limits', function () {
     $pdo = throttleDb();
 
@@ -198,7 +149,9 @@ it('reports database errors as exception', function () {
 it('updates the throttle record in a transaction', function () {
     $pdo = throttleDb();
     runThrottle($pdo);
-    $pdo->exec("CREATE TRIGGER fail_update BEFORE UPDATE ON throttle BEGIN SELECT RAISE(ABORT, 'update failed'); END");
+    $pdo->exec($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql'
+        ? "CREATE TRIGGER fail_update BEFORE UPDATE ON throttle FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'update failed'"
+        : "CREATE TRIGGER fail_update BEFORE UPDATE ON throttle BEGIN SELECT RAISE(ABORT, 'update failed'); END");
 
     $result = runThrottle($pdo);
 

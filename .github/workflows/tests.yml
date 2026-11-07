@@ -30,6 +30,48 @@ jobs:
       - name: Run tests
         run: vendor/bin/pest
 
+  database:
+    # throttle tests against a real database, as SQLite neither locks records nor enforces column sizes
+    name: ${{ matrix.database }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database: ['mysql:8.0', 'mysql:8.4', 'mariadb:11.4']
+    services:
+      database:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+    env:
+      TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;charset=utf8mb4
+      TEST_MYSQL_USER: root
+      TEST_MYSQL_PASSWORD: root
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, pdo_mysql, pdo_sqlite, posix
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Wait for database
+        run: |
+          for i in $(seq 30); do
+            php -r 'new PDO(getenv("TEST_MYSQL_DSN"), getenv("TEST_MYSQL_USER"), getenv("TEST_MYSQL_PASSWORD"));' && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Run tests
+        run: vendor/bin/pest
+
   code-style:
     name: Code style
     runs-on: ubuntu-latest

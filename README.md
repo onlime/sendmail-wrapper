@@ -191,6 +191,13 @@ $ composer lint
 
 The tests use fake sendmail/throttle commands and an in-memory SQLite database, so no MTA, sudo or MySQL server is required.
 
+To run the throttle tests against MySQL or MariaDB as well (as in CI), pass a DSN without database name. The tests drop and recreate the `sendmailwrapper_test` database, so never use a production server:
+
+```bash
+$ docker run -d --rm --name sendmailwrapper-test-db -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root mysql:8.4
+$ TEST_MYSQL_DSN="mysql:host=127.0.0.1;port=3306;charset=utf8mb4" TEST_MYSQL_USER=root TEST_MYSQL_PASSWORD=root composer test
+```
+
 ## Upgrading
 
 ### Upgrade from 1.1.x to 2.0.x

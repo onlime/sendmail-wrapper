@@ -21,7 +21,8 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, pdo_sqlite, posix
+          # imap: AddressList is tested against imap_rfc822_parse_adrlist() (skipped if not available)
+          extensions: mbstring, pdo_sqlite, posix, imap
           coverage: none
 
       - name: Install dependencies
@@ -63,7 +64,7 @@ jobs:
 
       - name: Wait for database
         run: |
-          for i in $(seq 30); do
+          for _ in $(seq 30); do
             php -r 'new PDO(getenv("TEST_MYSQL_DSN"), getenv("TEST_MYSQL_USER"), getenv("TEST_MYSQL_PASSWORD"));' && exit 0
             sleep 2
           done
@@ -110,6 +111,7 @@ jobs:
 
       - name: Run
         run: |
+          # shellcheck disable=SC2016 # PHP code, not expanded by the shell
           echo '<?php echo getenv("HTTP_HOST"), "|", var_export(getenv("REMOTE_ADDR"), true), "|", var_export(isset($envVars), true);' > /tmp/test.php
           output=$(HTTP_HOST='www.example.com(){ :;};' php -d error_reporting=E_ALL -d display_errors=1 -d auto_prepend_file=prepend.php /tmp/test.php)
           echo "$output"

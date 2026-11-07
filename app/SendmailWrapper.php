@@ -68,12 +68,6 @@ class SendmailWrapper extends StdinMailParser
 
         // throttling
         if ($throttleOn) {
-            // add recipient count to throttle command
-            $throttleCmd .= ' ' . $rcptCount;
-
-            // simple command execution
-            //system($throttleCmd, $status);
-
             // redirect STDIN data to throttle command
             // We're going to use the whole email message including some
             // extra headers.
@@ -83,17 +77,9 @@ class SendmailWrapper extends StdinMailParser
                 'X-Meta-Client' => $messageInfo['client'],
                 'X-Meta-Script' => $messageInfo['script'],
             ]);
-            $descriptorSpec = [
-                0 => ['pipe', 'r'],
-            ];
-            $proc = proc_open($throttleCmd, $descriptorSpec, $pipes);
-            if (is_resource($proc)) {
-                fwrite($pipes[0], $throttleMsg);
-                fclose($pipes[0]);
-                // It is important that you close any pipes before calling
-                // proc_close in order to avoid a deadlock
-                $status = proc_close($proc);
-            }
+            // add recipient count as argument to throttle command
+            $throttleArgs = array_merge($this->splitCommand($throttleCmd), [(string) $rcptCount]);
+            $status = $this->execute($throttleArgs, $throttleMsg) ?? $status;
         }
 
         // message logging to syslog
@@ -131,38 +117,60 @@ class SendmailWrapper extends StdinMailParser
         // get arguments from $_SERVER global (as register_argc_argv might be disabled)
         $argv = $_SERVER['argv'];
         array_shift($argv);
-        $allArgs = implode(' ', $argv);
+
+        $sendmailArgs = $this->splitCommand($sendmailCmd);
 
         // Force adding envelope sender address (sendmail -r/-f parameters)
-        // For security reasons, we check if the Return-Path or From email addresses
-        // are valid, prior to passing them to -r.
+        // The address is passed as a separate argument without involving a shell,
+        // as FILTER_VALIDATE_EMAIL allows shell metacharacters like ` | & { } $
         if (! in_array('-f', $argv) && ! in_array('-r', $argv)) {
             if (isset($headerArr['return-path']) && filter_var($headerArr['return-path'], FILTER_VALIDATE_EMAIL)) {
                 // use Return-Path as -r parameter
-                $sendmailCmd .= ' -r ' . $headerArr['return-path'];
+                array_push($sendmailArgs, '-r', $headerArr['return-path']);
                 $this->setHeader($xHeaderPrefix . 'EnvSender', 'Return-Path');
             } elseif (isset($headerArr['from']) && filter_var($headerArr['from'], FILTER_VALIDATE_EMAIL)) {
                 // use From as -r parameter
-                $sendmailCmd .= ' -r ' . $headerArr['from'];
+                array_push($sendmailArgs, '-r', $headerArr['from']);
                 $this->setHeader($xHeaderPrefix . 'EnvSender', 'From');
             }
         }
 
-        // append all passed arguments
-        if (count($argv)) {
-            $sendmailCmd .= ' ' . $allArgs;
-            //$addHeaders['X-Debug-Argv'] = $allArgs;
-        }
+        // append all passed arguments unchanged (they must not be re-interpreted by a shell)
+        $sendmailArgs = array_merge($sendmailArgs, $argv);
 
         // reassemble the message
         $data = $this->buildMessage();
 
         // pass email to the original sendmail binary
-        $h = popen($sendmailCmd, 'w');
-        fwrite($h, $data);
-        pclose($h);
+        $this->execute($sendmailArgs, $data);
 
         return $status;
+    }
+
+    /**
+     * Split a configured command line (trusted config value) into its arguments.
+     */
+    protected function splitCommand(string $cmd): array
+    {
+        return preg_split('/\s+/', trim($cmd), -1, PREG_SPLIT_NO_EMPTY);
+    }
+
+    /**
+     * Execute a command directly (without a shell), pass $input to its STDIN
+     * and return its exit status, or null if the process could not be started.
+     */
+    protected function execute(array $args, string $input): ?int
+    {
+        $proc = proc_open($args, [0 => ['pipe', 'r']], $pipes);
+        if (! is_resource($proc)) {
+            return null;
+        }
+        fwrite($pipes[0], $input);
+        // It is important that you close any pipes before calling
+        // proc_close in order to avoid a deadlock
+        fclose($pipes[0]);
+
+        return proc_close($proc);
     }
 
     /**

@@ -19,7 +19,7 @@ A powerful sendmail wrapper to log and throttle emails sent by PHP
 
 - PHP 8.2+ (CLI, `/usr/bin/php`) with extensions `mbstring`, `pdo_mysql` and `posix`
 - sendmail compatible MTA: Exim, Postfix,...
-- sudo 1.9.10+ (or 1.8+, see [Setup sudo](#setup-sudo))
+- sudo 1.9.10+ (Debian 12+), for regular expressions in sudoers
 - MySQL 5.7+ or MariaDB
 
 > Currently, sendmail-wrapper is tested and actively used by [Onlime GmbH](https://www.onlime.ch/) on shared webhosting environments with PHP 8.2, 8.3, 8.4 and 8.5.
@@ -87,8 +87,6 @@ Add the following lines to your `/etc/sudoers` (or a file in `/etc/sudoers.d/`),
 www-data        ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle ^[0-9]+$
 %customers      ALL = (sendmailwrapper) NOPASSWD:/usr/sbin/sendmail-throttle ^[0-9]+$
 ```
-
-Regular expressions in sudoers require sudo 1.9.10+ (Debian 12+). On older versions, use the wildcard `[0-9]*` instead (which also matches additional arguments, which are rejected by `sendmail-throttle`).
 
 > **NOTE:**
 > Don't use a regular expression like `^[0-9]{1,6}$`: commas separate commands in sudoers, so the rule would silently be split.
@@ -212,7 +210,7 @@ $ TEST_MYSQL_DSN="mysql:host=127.0.0.1;port=3306;charset=utf8mb4" TEST_MYSQL_USE
   ```bash
   $ mysql -u root -p < schema/migrations/20261107-add-username-index.sql
   ```
-- Optionally, restrict the sudoers rules with a regular expression, see [Setup sudo](#setup-sudo).
+- sudo 1.9.10+ (Debian 12+) is required: restrict the sudoers rules to a single number with a regular expression, see [Setup sudo](#setup-sudo). The former wildcard `[0-9]*` also matched additional arguments.
 - `messages.sender_host` now contains the hostname of the server running sendmail-wrapper (`gethostname()`), instead of the client host seen by the MySQL server (`USER()`).
 - sendmail-wrapper now returns the exit status of sendmail, so `mail()` returns `false` if the MTA failed to accept a message.
 

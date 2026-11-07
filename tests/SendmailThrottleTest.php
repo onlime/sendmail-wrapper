@@ -257,3 +257,29 @@ it('retries on deadlocks', function (int $deadlocks, ThrottleStatus $status) {
     'four times' => [4, ThrottleStatus::Ok],
     'five times' => [5, ThrottleStatus::Exception],
 ]);
+
+it('truncates the message meta information to the column sizes', function () {
+    $pdo = throttleDb();
+    runThrottle($pdo, data: "From: sender@example.com\nTo: " . str_repeat('x', 70000) . "\nSubject: " . str_repeat('s', 300)
+        . "\nX-Meta-Client: " . str_repeat('1', 60) . "\nX-Meta-Site: " . str_repeat('s', 300) . "\n\nBody");
+
+    $row = $pdo->query('SELECT * FROM messages')->fetch(PDO::FETCH_ASSOC);
+
+    expect(mb_strlen($row['subject']))->toBe(255)
+        ->and(mb_strlen($row['client']))->toBe(40)
+        ->and(mb_strlen($row['site']))->toBe(255)
+        ->and(strlen($row['to_addr']))->toBe(65535);
+});
+
+it('does not fail if the message cannot be logged', function () {
+    $pdo = throttleDb();
+    $pdo->exec('DROP TABLE messages');
+
+    $result = runThrottle($pdo, rcptCount: 11);
+
+    expect($result['status'])->toBe(ThrottleStatus::QuotaReached)
+        ->and($result['mails'])->toHaveCount(1)
+        ->and($result['log'][1][0])->toBe(LOG_WARNING)
+        ->and($result['log'][1][1])->toStartWith('sendmail-throttle-php: Could not log message to database: ')
+        ->and(throttleRow($pdo)['rcpt_cur'])->toBe(11);
+});

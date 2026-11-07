@@ -217,33 +217,60 @@ final class SendmailThrottle
 
     /**
      * Insert meta information of the message into messages table, for logging purposes.
+     *
+     * Values are truncated to their column sizes. Failing to log a message must never prevent it
+     * from being sent, so database errors are only reported to syslog.
      */
     private function logMessage(int $throttleId, string $username, int $rcptCount, ThrottleStatus $status): void
     {
         $headers = $this->message->headers();
 
-        $this->pdo->prepare(
-            'INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from_addr, to_addr,
-                cc_addr, bcc_addr, subject, site, client, sender_host, script)
-            VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :fromAddr, :toAddr,
-                :ccAddr, :bccAddr, :subject, :site, :client, :senderHost, :script)'
-        )->execute([
-            'throttleId' => $throttleId,
-            'username' => $username,
-            'uid' => $this->env['SUDO_UID'] ?? null,
-            'gid' => $this->env['SUDO_GID'] ?? null,
-            'rcptCount' => $rcptCount,
-            'status' => $status->value,
-            'msgid' => $headers['x-meta-msgid'] ?? null,
-            'fromAddr' => mb_decode_mimeheader($headers['from'] ?? ''),
-            'toAddr' => mb_decode_mimeheader($headers['to'] ?? ''),
-            'ccAddr' => mb_decode_mimeheader($headers['cc'] ?? ''),
-            'bccAddr' => mb_decode_mimeheader($headers['bcc'] ?? ''),
-            'subject' => mb_decode_mimeheader($headers['subject'] ?? ''),
-            'site' => $headers['x-meta-site'] ?? '',
-            'client' => $headers['x-meta-client'] ?? null,
-            'senderHost' => gethostname() ?: 'localhost',
-            'script' => $headers['x-meta-script'] ?? null,
-        ]);
+        try {
+            $this->pdo->prepare(
+                'INSERT INTO messages (throttle_id, username, uid, gid, rcpt_count, status, msgid, from_addr, to_addr,
+                    cc_addr, bcc_addr, subject, site, client, sender_host, script)
+                VALUES (:throttleId, :username, :uid, :gid, :rcptCount, :status, :msgid, :fromAddr, :toAddr,
+                    :ccAddr, :bccAddr, :subject, :site, :client, :senderHost, :script)'
+            )->execute([
+                'throttleId' => $throttleId,
+                'username' => $username,
+                'uid' => $this->env['SUDO_UID'] ?? null,
+                'gid' => $this->env['SUDO_GID'] ?? null,
+                'rcptCount' => $rcptCount,
+                'status' => $status->value,
+                'msgid' => self::limit($headers['x-meta-msgid'] ?? null, 255),
+                'fromAddr' => self::limit(mb_decode_mimeheader($headers['from'] ?? ''), 255),
+                'toAddr' => self::limitText(mb_decode_mimeheader($headers['to'] ?? '')),
+                'ccAddr' => self::limitText(mb_decode_mimeheader($headers['cc'] ?? '')),
+                'bccAddr' => self::limitText(mb_decode_mimeheader($headers['bcc'] ?? '')),
+                'subject' => self::limit(mb_decode_mimeheader($headers['subject'] ?? ''), 255),
+                'site' => self::limit($headers['x-meta-site'] ?? '', 255),
+                'client' => self::limit($headers['x-meta-client'] ?? null, 40),
+                'senderHost' => self::limit(gethostname() ?: 'localhost', 255),
+                'script' => self::limit($headers['x-meta-script'] ?? null, 255),
+            ]);
+        } catch (PDOException $e) {
+            ($this->log)(LOG_WARNING, sprintf(
+                '%s: Could not log message to database: %s',
+                $this->config->string('throttle.syslogPrefix'),
+                $e->getMessage(),
+            ));
+        }
+    }
+
+    /**
+     * Limit a value to the length of a VARCHAR column (in characters).
+     */
+    private static function limit(?string $value, int $length): ?string
+    {
+        return $value === null ? null : mb_substr($value, 0, $length);
+    }
+
+    /**
+     * Limit a value to the size of a TEXT column (64 KB), without breaking multibyte characters.
+     */
+    private static function limitText(string $value): string
+    {
+        return mb_strcut($value, 0, 65535);
     }
 }

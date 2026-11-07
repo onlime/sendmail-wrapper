@@ -87,7 +87,7 @@ abstract class StdinMailParser
                 syslog(LOG_WARNING, sprintf('%s: Could not parse mail header line: %s', __METHOD__, $line));
             }
             $key   = strtolower(trim($key));
-            $value = trim($value);
+            $value = trim($value ?? '');
             if (isset($headerArr[$key]) && ! in_array($key, $this->rfc5322MultiHeaders)) {
                 // workaround for duplicate headers that should not appear
                 // more than once: simply merge them, comma separated.
@@ -107,7 +107,7 @@ abstract class StdinMailParser
      * @param array|null $extraHeaders add extra headers only for this method call
      * @return string
      */
-    public function buildMessage(array $extraHeaders = null): string
+    public function buildMessage(?array $extraHeaders = null): string
     {
         $header = $this->header;
 

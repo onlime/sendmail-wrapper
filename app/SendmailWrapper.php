@@ -176,7 +176,7 @@ class SendmailWrapper extends StdinMailParser
     /**
      * Limit a string to a specific length.
      */
-    public function stripStrLength(?string $value, int $limit = null, string $suffix = null): string
+    public function stripStrLength(?string $value, ?int $limit = null, ?string $suffix = null): string
     {
         $value ??= '';
         $limit = $limit ?? $this->conf->syslog->stringLengthLimit;

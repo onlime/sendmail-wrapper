@@ -208,6 +208,10 @@ $ TEST_MYSQL_DSN="mysql:host=127.0.0.1;port=3306;charset=utf8mb4" TEST_MYSQL_USE
   ```bash
   $ mysql -u root -p < schema/migrations/20261107-utf8mb4.sql
   ```
+- Add an index on `throttle.username`, so that locking a user's throttle record does not block all other users:
+  ```bash
+  $ mysql -u root -p < schema/migrations/20261107-add-username-index.sql
+  ```
 - Optionally, restrict the sudoers rules with a regular expression, see [Setup sudo](#setup-sudo).
 - `messages.sender_host` now contains the hostname of the server running sendmail-wrapper (`gethostname()`), instead of the client host seen by the MySQL server (`USER()`).
 - sendmail-wrapper now returns the exit status of sendmail, so `mail()` returns `false` if the MTA failed to accept a message.

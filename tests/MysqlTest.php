@@ -58,10 +58,27 @@ it('locks the throttle record until the counters are updated', function () {
         ->and(throttleRow($pdo)['count_cur'])->toBe(1);
 });
 
-it('migrates the database of version 1.1 to utf8mb4', function () {
+it('does not block other users while a throttle record is locked', function () {
     $pdo = throttleDb();
-    // character set of version 1.1
+    runThrottle($pdo, username: 'web1');
+    runThrottle($pdo, username: 'web2');
+    $other = mysqlConnection('sendmailwrapper_test');
+    $other->beginTransaction();
+    $other->query("SELECT * FROM throttle WHERE username = 'web1' FOR UPDATE");
+    $pdo->exec('SET SESSION innodb_lock_wait_timeout = 1');
+
+    $result = runThrottle($pdo, username: 'web2');
+    $other->rollBack();
+
+    expect($result['status'])->toBe(ThrottleStatus::Ok)
+        ->and(throttleRow($pdo, 'web2')['count_cur'])->toBe(2);
+});
+
+it('migrates the database of version 1.1', function () {
+    $pdo = throttleDb();
+    // schema of version 1.1
     $pdo->exec(<<<'SQL'
+        ALTER TABLE throttle DROP INDEX idx_username;
         ALTER DATABASE sendmailwrapper_test CHARACTER SET utf8mb3;
         ALTER TABLE throttle CONVERT TO CHARACTER SET utf8mb3;
         ALTER TABLE messages CONVERT TO CHARACTER SET utf8mb3;
@@ -70,6 +87,7 @@ it('migrates the database of version 1.1 to utf8mb4', function () {
 
     $before = runThrottle($pdo, data: $data);
     $pdo->exec(mysqlSql('schema/migrations/20261107-utf8mb4.sql'));
+    $pdo->exec(mysqlSql('schema/migrations/20261107-add-username-index.sql'));
     $after = runThrottle($pdo, data: $data);
 
     expect($before['status'])->toBe(ThrottleStatus::Ok)
@@ -79,5 +97,6 @@ it('migrates the database of version 1.1 to utf8mb4', function () {
         ->and($pdo->query('SELECT subject FROM messages')->fetchAll(PDO::FETCH_COLUMN))->toBe(['Hällo 🚀'])
         ->and($pdo->query("SELECT DISTINCT character_set_name FROM information_schema.columns
             WHERE table_schema = 'sendmailwrapper_test' AND character_set_name IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN))
-        ->toBe(['utf8mb4']);
+        ->toBe(['utf8mb4'])
+        ->and($pdo->query("SHOW INDEX FROM throttle WHERE Key_name = 'idx_username'")->fetchAll())->toHaveCount(1);
 });

@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS `sendmailwrapper`.`throttle` (
   `rcpt_tot` INT NOT NULL DEFAULT 1 COMMENT 'total recipient count',
   `status` TINYINT NOT NULL DEFAULT 0,
   `blocked` TINYINT NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`))
+  PRIMARY KEY (`id`),
+  INDEX `idx_username` (`username` ASC))
   ENGINE = InnoDB;
 
 

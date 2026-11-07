@@ -14,6 +14,8 @@ CREATE TABLE throttle (
   blocked TINYINT NOT NULL DEFAULT 0
 );
 
+CREATE INDEX idx_username ON throttle (username);
+
 CREATE TABLE messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   throttle_id INT NULL REFERENCES throttle (id) ON DELETE SET NULL ON UPDATE CASCADE,

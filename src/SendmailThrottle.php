@@ -67,28 +67,35 @@ final class SendmailThrottle
             $throttle = $stmt->fetchObject();
 
             if ($throttle) {
-                // reset counters on new day (after midnight)
-                if (str_starts_with((string) $throttle->updated_ts, $this->now->format('Y-m-d'))) {
-                    $countCur = (int) $throttle->count_cur + 1;
-                    $rcptCur = (int) $throttle->rcpt_cur + $rcptCount;
-                } else {
-                    $countCur = 1;
-                    $rcptCur = 1;
-                }
+                // reset current counters and status on a new day (after midnight)
+                $sameDay = str_starts_with((string) $throttle->updated_ts, $this->now->format('Y-m-d'));
 
                 $countMax = (int) $throttle->count_max;
+                $countCur = ($sameDay ? (int) $throttle->count_cur : 0) + 1;
                 $countTot = (int) $throttle->count_tot + 1;
                 $rcptMax = (int) $throttle->rcpt_max;
+                $rcptCur = ($sameDay ? (int) $throttle->rcpt_cur : 0) + $rcptCount;
                 $rcptTot = (int) $throttle->rcpt_tot + $rcptCount;
+                $previousStatus = $sameDay ? (int) $throttle->status : ThrottleStatus::Ok->value;
+            } else {
+                $countMax = $this->config->int('throttle.countMax');
+                $countCur = 1;
+                $countTot = 1;
+                $rcptMax = $this->config->int('throttle.rcptMax');
+                $rcptCur = $rcptCount;
+                $rcptTot = $rcptCount;
+                $previousStatus = ThrottleStatus::Ok->value;
+            }
 
-                // check email or recipient count
-                if ($countCur > $countMax || $rcptCur > $rcptMax) {
-                    // only report reaching the limit once (if previous status was ok)
-                    $status = (int) $throttle->status === ThrottleStatus::Ok->value
-                        ? ThrottleStatus::QuotaReached
-                        : ThrottleStatus::OverQuota;
-                }
+            // check email or recipient count
+            if ($countCur > $countMax || $rcptCur > $rcptMax) {
+                // only report reaching the limit once (if previous status was ok)
+                $status = $previousStatus === ThrottleStatus::Ok->value
+                    ? ThrottleStatus::QuotaReached
+                    : ThrottleStatus::OverQuota;
+            }
 
+            if ($throttle) {
                 $this->pdo->prepare(
                     'UPDATE throttle SET updated_ts = :now, count_cur = :countCur, count_tot = :countTot,
                         rcpt_cur = :rcptCur, rcpt_tot = :rcptTot, status = :status
@@ -109,16 +116,9 @@ final class SendmailThrottle
                     $status = ThrottleStatus::Blocked;
                 }
             } else {
-                $countMax = $this->config->int('throttle.countMax');
-                $countCur = 1;
-                $countTot = 1;
-                $rcptMax = $this->config->int('throttle.rcptMax');
-                $rcptCur = $rcptCount;
-                $rcptTot = $rcptCount;
-
                 $this->pdo->prepare(
-                    'INSERT INTO throttle (updated_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot)
-                    VALUES (:now, :username, :countMax, :rcptMax, :rcptCur, :rcptTot)'
+                    'INSERT INTO throttle (updated_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot, status)
+                    VALUES (:now, :username, :countMax, :rcptMax, :rcptCur, :rcptTot, :status)'
                 )->execute([
                     'now' => $now,
                     'username' => $username,
@@ -126,6 +126,7 @@ final class SendmailThrottle
                     'rcptMax' => $rcptMax,
                     'rcptCur' => $rcptCur,
                     'rcptTot' => $rcptTot,
+                    'status' => $status->value,
                 ]);
                 $id = (int) $this->pdo->lastInsertId();
             }

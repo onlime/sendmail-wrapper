@@ -112,8 +112,28 @@ it('resets the current counters on a new day', function () {
     expect(throttleRow($pdo))->toMatchArray([
         'updated_ts' => '2026-11-08 00:00:00',
         'count_cur' => 1, 'count_tot' => 2,
-        'rcpt_tot' => 5,
+        'rcpt_cur' => 3, 'rcpt_tot' => 5,
     ]);
+});
+
+it('checks the limits on the first message of a new user', function () {
+    $pdo = throttleDb();
+    $result = runThrottle($pdo, rcptCount: 11);
+
+    expect($result['status'])->toBe(ThrottleStatus::QuotaReached)
+        ->and($result['mails'])->toHaveCount(1)
+        ->and(throttleRow($pdo))->toMatchArray(['rcpt_cur' => 11, 'status' => ThrottleStatus::QuotaReached->value]);
+});
+
+it('reports reaching the limit again on a new day', function () {
+    $pdo = throttleDb();
+    expect(runThrottle($pdo, rcptCount: 11, now: '2026-11-07 12:00:00')['status'])->toBe(ThrottleStatus::QuotaReached)
+        ->and(runThrottle($pdo, rcptCount: 1, now: '2026-11-07 13:00:00')['status'])->toBe(ThrottleStatus::OverQuota);
+
+    $result = runThrottle($pdo, rcptCount: 11, now: '2026-11-08 12:00:00');
+
+    expect($result['status'])->toBe(ThrottleStatus::QuotaReached)
+        ->and($result['mails'])->toHaveCount(1);
 });
 
 it('reports reaching the message limit to the admin only once', function () {

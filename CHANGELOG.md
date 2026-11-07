@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2.0.0 (unreleased)
+
+Breaking changes, see [Upgrading](README.md#upgrade-from-11x-to-20x) notes for details.
+
+- Dropped support for PHP < 8.2 (`prepend.php` still supports PHP 7.4+, as it is prepended to all PHP versions installed on a server).
+- Replaced `ext-imap` (unbundled from PHP 8.4) by a built-in RFC 5322 address list parser for recipient counting. `ext-posix` is now required.
+- Modernized code base: `Onlime\SendmailWrapper` namespace in `src/` with a standalone autoloader (no Composer `vendor/` required in production), strict types, final classes with constructor promotion and injected dependencies, `ThrottleStatus` enum, readonly `Config` and `Message` classes.
+- Added [Pest](https://pestphp.com/) test suite and GitHub Actions workflow running tests on PHP 8.2 to 8.5.
+- Security: Folded header lines are now unfolded before parsing. Previously, recipients on continuation lines of `To`/`Cc`/`Bcc` headers were not counted, which allowed bypassing the recipient limit.
+- Security: Fixed race condition in throttle counters. Concurrently sent messages overwrote each other's counter updates (bypassing the limits) and could create duplicate throttle records. The throttle record is now locked (`SELECT ... FOR UPDATE`) and updated in a transaction, retried on deadlocks.
+- Security: `X-Meta-*` headers passed to the throttle command can no longer be spoofed by the sender's own headers (log tampering).
+- Security: `sendmail-throttle` validates its arguments (exactly one numeric recipient count) and requires being run via sudo.
+- Throttling never fails because the message could not be logged to the database anymore (e.g. subject longer than 255 characters, or emoji in utf8mb3 tables), which previously blocked the message (or sent it without logging it, if `throttle.ignoreExceptions` was enabled). Values are truncated to their column sizes and logging errors are reported to syslog.
+- Switched database schema to utf8mb4, with migration `schema/migrations/20261107-utf8mb4.sql`.
+- Fixed `rcpt_cur` being reset to 1 instead of the recipient count on the first message of a new day.
+- A new user's first message is now checked against the limits as well.
+- Reaching the limit with the first message of a new day is now reported to the admin again.
+- Return the exit status of sendmail, so that `mail()` returns `false` if the MTA failed to accept the message.
+- Failures of the throttle command itself (e.g. command not found, PHP fatal error) are treated as exception, respecting `throttle.ignoreExceptions`.
+- Detect an envelope sender passed as joined argument (e.g. `-fuser@example.com`), avoiding an additional `-r` argument.
+- Fixed raw (unencoded) UTF-8 header values being logged as question marks to the `messages` table.
+- Fixed TypeError on messages without body.
+- Timestamps are supplied by PHP instead of MySQL `NOW()`, avoiding timezone mismatches. `messages.sender_host` now contains the hostname of the server running sendmail-wrapper (`gethostname()`).
+
 ## 1.1.1 (unreleased)
 
 Security release, all users should upgrade immediately.

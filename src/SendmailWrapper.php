@@ -130,14 +130,9 @@ final class SendmailWrapper
      */
     private function recipientCount(array $headers): int
     {
-        $count = 0;
-        foreach (['to', 'cc', 'bcc'] as $name) {
-            if (isset($headers[$name])) {
-                $count += count(imap_rfc822_parse_adrlist($headers[$name], $this->config->string('wrapper.defaultHost')));
-            }
-        }
-
-        return $count;
+        return AddressList::count($headers['to'] ?? '')
+            + AddressList::count($headers['cc'] ?? '')
+            + AddressList::count($headers['bcc'] ?? '');
     }
 
     /**

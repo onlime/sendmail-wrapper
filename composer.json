@@ -19,8 +19,7 @@
         "php": "^8.2",
         "ext-mbstring": "*",
         "ext-pdo": "*",
-        "ext-posix": "*",
-        "ext-imap": "*"
+        "ext-posix": "*"
     },
     "require-dev": {
         "laravel/pint": "^1.20",

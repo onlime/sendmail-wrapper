@@ -15,5 +15,12 @@ use Onlime\SendmailWrapper\SendmailWrapper;
 
 $config = require __DIR__ . '/bootstrap.php';
 
-$status = (new SendmailWrapper($config, Message::fromStdin()))->run();
-exit($status);
+$wrapper = new SendmailWrapper(
+    $config,
+    Message::fromStdin(),
+    // get arguments from $_SERVER global (as register_argc_argv might be disabled)
+    array_slice($_SERVER['argv'], 1),
+    getenv(),
+);
+
+exit($wrapper->run());

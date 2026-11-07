@@ -1,0 +1,36 @@
+-- SQLite version of schema/schema.mysql.sql, for testing
+CREATE TABLE throttle (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username VARCHAR(30) NOT NULL DEFAULT '',
+  create_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_ts TIMESTAMP NULL DEFAULT NULL,
+  count_max INT NOT NULL DEFAULT 0,
+  count_cur INT NOT NULL DEFAULT 1,
+  count_tot INT NOT NULL DEFAULT 1,
+  rcpt_max INT NOT NULL DEFAULT 0,
+  rcpt_cur INT NOT NULL DEFAULT 1,
+  rcpt_tot INT NOT NULL DEFAULT 1,
+  status TINYINT NOT NULL DEFAULT 0,
+  blocked TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  throttle_id INT NULL REFERENCES throttle (id) ON DELETE SET NULL ON UPDATE CASCADE,
+  sent_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  username VARCHAR(30) NULL,
+  uid INT NULL,
+  gid INT NULL,
+  rcpt_count INT NOT NULL DEFAULT 1,
+  status INT NOT NULL DEFAULT 0,
+  msgid VARCHAR(255) NULL,
+  from_addr VARCHAR(255) NOT NULL DEFAULT '',
+  to_addr TEXT NOT NULL,
+  cc_addr TEXT NOT NULL,
+  bcc_addr TEXT NOT NULL,
+  subject VARCHAR(255) NOT NULL DEFAULT '',
+  site VARCHAR(255) NOT NULL DEFAULT '',
+  client VARCHAR(40) NULL,
+  sender_host VARCHAR(255) NOT NULL DEFAULT 'localhost',
+  script VARCHAR(255) NULL
+);

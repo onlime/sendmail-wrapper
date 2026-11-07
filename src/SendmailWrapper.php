@@ -4,18 +4,37 @@ declare(strict_types=1);
 
 namespace Onlime\SendmailWrapper;
 
+use Closure;
+
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services
  * https://github.com/onlime/sendmail-wrapper
  *
+ * Logs and throttles a message passed to sendmail (via PHP's mail() function), before passing
+ * it to the original sendmail binary.
+ *
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
-class SendmailWrapper
+final class SendmailWrapper
 {
+    /** @var Closure(int, string): mixed */
+    private readonly Closure $log;
+
+    /**
+     * @param  list<string>  $args  command line arguments passed to sendmail-wrapper (without script name)
+     * @param  array<string, string>  $env  environment variables, incl. HTTP_HOST, REMOTE_ADDR, SCRIPT_FILENAME
+     *                                      exported by prepend.php
+     * @param  (Closure(int, string): mixed)|null  $log  defaults to syslog()
+     */
     public function __construct(
         private readonly Config $config,
         private readonly Message $message,
-    ) {}
+        private readonly array $args = [],
+        private readonly array $env = [],
+        ?Closure $log = null,
+    ) {
+        $this->log = $log ?? syslog(...);
+    }
 
     /**
      * Run sendmail wrapper
@@ -24,180 +43,150 @@ class SendmailWrapper
      */
     public function run(): int
     {
-        $status = SendmailThrottle::STATUS_OK;
+        $xHeaderPrefix = $this->config->string('wrapper.xHeaderPrefix');
+        $syslogPrefix = $this->config->string('wrapper.syslogPrefix');
 
-        // get config variables
-        $sendmailCmd      = $this->config->string('wrapper.sendmailCmd');
-        $throttleCmd      = $this->config->string('wrapper.throttleCmd');
-        $throttleOn       = $this->config->bool('wrapper.throttleOn');
-        $xHeaderPrefix    = $this->config->string('wrapper.xHeaderPrefix');
-        $defaultHost      = $this->config->string('wrapper.defaultHost');
-        $ignoreExceptions = $this->config->bool('throttle.ignoreExceptions');
-
-        // generate an RFC-compliant Message-ID
-        // RFC 2822 (http://www.faqs.org/rfcs/rfc2822.html)
-        $msgId = sprintf(
-            '%s.%s@%s',
-            date('YmdHis'),
-            base_convert((string) mt_rand(), 10, 36),
-            $defaultHost
-        );
-
-        // set additional header
-        $this->message->addHeader($xHeaderPrefix . 'MsgID', sprintf('<%s>', $msgId));
+        // generate a unique, RFC 5322 compliant Message-ID
+        $msgId = sprintf('%s.%s@%s', date('YmdHis'), bin2hex(random_bytes(6)), $this->config->string('wrapper.defaultHost'));
+        $this->message->addHeader($xHeaderPrefix . 'MsgID', "<$msgId>");
 
         // parse original headers
-        $headerArr = $this->message->headers();
+        $headers = $this->message->headers();
         foreach ($this->message->malformedHeaders() as $line) {
-            syslog(LOG_WARNING, sprintf('%s: Could not parse mail header line: %s', $this->config->string('wrapper.syslogPrefix'), $line));
+            ($this->log)(LOG_WARNING, "$syslogPrefix: Could not parse mail header line: $line");
         }
 
-        // count total number of recipients
-        $rcptCount   = 0;
-        $rcptHeaders = ['to', 'cc', 'bcc'];
-        foreach ($rcptHeaders as $rcptHeader) {
-            if (isset($headerArr[$rcptHeader])) {
-                // parse recipient headers according to RFC2822 (http://www.faqs.org/rfcs/rfc2822.html)
-                $rcptCount += count(imap_rfc822_parse_adrlist($headerArr[$rcptHeader], $defaultHost));
-            }
-        }
-
-        $messageInfo   = [
-            'uid'     => trim(shell_exec('whoami')),
-            'msgid'   => $msgId,
-            'from'    => @$headerArr['from'],
-            'to'      => @$headerArr['to'],
-            'cc'      => @$headerArr['cc'],
-            'bcc'     => @$headerArr['bcc'],
-            'subject' => @$headerArr['subject'],
-            'site'    => @$_SERVER['HTTP_HOST'],
-            'client'  => @$_SERVER['REMOTE_ADDR'],
-            'script'  => getenv('SCRIPT_FILENAME'),
-        ];
+        $site = $this->env['HTTP_HOST'] ?? '';
+        $client = $this->env['REMOTE_ADDR'] ?? '';
+        $script = $this->env['SCRIPT_FILENAME'] ?? '';
 
         // throttling
-        if ($throttleOn) {
-            // redirect STDIN data to throttle command
-            // We're going to use the whole email message including some
-            // extra headers.
-            $throttleMsg = $this->message->toString([
-                'X-Meta-MsgID'  => $messageInfo['msgid'],
-                'X-Meta-Site'   => $messageInfo['site'],
-                'X-Meta-Client' => $messageInfo['client'],
-                'X-Meta-Script' => $messageInfo['script'],
-            ]);
-            // add recipient count as argument to throttle command
-            $throttleArgs = array_merge($this->splitCommand($throttleCmd), [(string) $rcptCount]);
-            $status = $this->execute($throttleArgs, $throttleMsg) ?? $status;
+        $status = ThrottleStatus::Ok->value;
+        if ($this->config->bool('wrapper.throttleOn')) {
+            // pass the whole message including some meta information headers to the throttle command
+            $status = $this->execute(
+                [...$this->command('wrapper.throttleCmd'), (string) $this->recipientCount($headers)],
+                $this->message->toString([
+                    'X-Meta-MsgID' => $msgId,
+                    'X-Meta-Site' => $site,
+                    'X-Meta-Client' => $client,
+                    'X-Meta-Script' => $script,
+                ]),
+            ) ?? $status;
         }
 
-        // message logging to syslog
-        $syslogMsg = sprintf(
-            '%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
-            $this->config->string('wrapper.syslogPrefix'),
-            $messageInfo['uid'],
-            $messageInfo['msgid'],
-            $messageInfo['from'],
-            $this->stripStrLength($messageInfo['to']),
-            $this->stripStrLength($messageInfo['cc']),
-            $this->stripStrLength($messageInfo['bcc']),
-            $messageInfo['subject'],
-            $messageInfo['site'],
-            $messageInfo['client'],
-            $messageInfo['script'],
-            $status
-        );
-        // Don't write to syslog for blocked useraccounts - we still have all meta information in messages
+        // Don't write to syslog for blocked user accounts - we still have all meta information in messages
         // table but don't want to fill up syslog.
-        if ($status != SendmailThrottle::STATUS_BLOCKED) {
-            syslog(LOG_INFO, $syslogMsg);
+        if ($status !== ThrottleStatus::Blocked->value) {
+            ($this->log)(LOG_INFO, sprintf(
+                '%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
+                $syslogPrefix,
+                $this->username(),
+                $msgId,
+                $headers['from'] ?? '',
+                $this->truncate($headers['to'] ?? ''),
+                $this->truncate($headers['cc'] ?? ''),
+                $this->truncate($headers['bcc'] ?? ''),
+                $headers['subject'] ?? '',
+                $site,
+                $client,
+                $script,
+                $status,
+            ));
         }
 
         // terminate if message limit exceeded
-        if ($throttleOn && $status > SendmailThrottle::STATUS_OK) {
-            if ($ignoreExceptions && $status == SendmailThrottle::STATUS_EXCEPTION) {
-                $status = SendmailThrottle::STATUS_OK;
+        if ($status > ThrottleStatus::Ok->value) {
+            if ($this->config->bool('throttle.ignoreExceptions') && $status === ThrottleStatus::Exception->value) {
+                $status = ThrottleStatus::Ok->value;
             } else {
-                // return exit status
                 return $status;
             }
         }
 
-        // get arguments from $_SERVER global (as register_argc_argv might be disabled)
-        $argv = $_SERVER['argv'];
-        array_shift($argv);
+        $sendmail = $this->command('wrapper.sendmailCmd');
 
-        $sendmailArgs = $this->splitCommand($sendmailCmd);
-
-        // Force adding envelope sender address (sendmail -r/-f parameters)
-        // The address is passed as a separate argument without involving a shell,
-        // as FILTER_VALIDATE_EMAIL allows shell metacharacters like ` | & { } $
-        if (! in_array('-f', $argv) && ! in_array('-r', $argv)) {
-            if (isset($headerArr['return-path']) && filter_var($headerArr['return-path'], FILTER_VALIDATE_EMAIL)) {
-                // use Return-Path as -r parameter
-                array_push($sendmailArgs, '-r', $headerArr['return-path']);
-                $this->message->addHeader($xHeaderPrefix . 'EnvSender', 'Return-Path');
-            } elseif (isset($headerArr['from']) && filter_var($headerArr['from'], FILTER_VALIDATE_EMAIL)) {
-                // use From as -r parameter
-                array_push($sendmailArgs, '-r', $headerArr['from']);
-                $this->message->addHeader($xHeaderPrefix . 'EnvSender', 'From');
+        // Force adding envelope sender address (sendmail -r/-f parameters) from Return-Path or From header.
+        // The address must be passed as a separate argument without involving a shell, as
+        // FILTER_VALIDATE_EMAIL allows shell metacharacters like ` | & { } $
+        if (! in_array('-f', $this->args, true) && ! in_array('-r', $this->args, true)) {
+            foreach (['return-path' => 'Return-Path', 'from' => 'From'] as $name => $label) {
+                if (filter_var($headers[$name] ?? '', FILTER_VALIDATE_EMAIL)) {
+                    array_push($sendmail, '-r', $headers[$name]);
+                    $this->message->addHeader($xHeaderPrefix . 'EnvSender', $label);
+                    break;
+                }
             }
         }
 
-        // append all passed arguments unchanged (they must not be re-interpreted by a shell)
-        $sendmailArgs = array_merge($sendmailArgs, $argv);
-
-        // reassemble the message
-        $data = $this->message->toString();
-
-        // pass email to the original sendmail binary
-        $this->execute($sendmailArgs, $data);
+        // pass the message to the original sendmail binary, appending all original arguments unchanged
+        $this->execute([...$sendmail, ...$this->args], $this->message->toString());
 
         return $status;
     }
 
     /**
-     * Split a configured command line (trusted config value) into its arguments.
+     * Count the total number of recipients in To, Cc and Bcc headers.
      */
-    protected function splitCommand(string $cmd): array
+    private function recipientCount(array $headers): int
     {
-        return preg_split('/\s+/', trim($cmd), -1, PREG_SPLIT_NO_EMPTY);
+        $count = 0;
+        foreach (['to', 'cc', 'bcc'] as $name) {
+            if (isset($headers[$name])) {
+                $count += count(imap_rfc822_parse_adrlist($headers[$name], $this->config->string('wrapper.defaultHost')));
+            }
+        }
+
+        return $count;
     }
 
     /**
-     * Execute a command directly (without a shell), pass $input to its STDIN
-     * and return its exit status, or null if the process could not be started.
+     * Name of the system user running sendmail-wrapper.
      */
-    protected function execute(array $args, string $input): ?int
+    private function username(): string
     {
-        $proc = proc_open($args, [0 => ['pipe', 'r']], $pipes);
-        if (! is_resource($proc)) {
+        return posix_getpwuid(posix_geteuid())['name'] ?? (string) posix_geteuid();
+    }
+
+    /**
+     * Limit a string to the configured syslog string length.
+     */
+    private function truncate(string $value): string
+    {
+        $limit = $this->config->int('syslog.stringLengthLimit');
+        $suffix = $this->config->string('syslog.stringCutSuffix');
+
+        return mb_strlen($value) > $limit
+            ? mb_substr($value, 0, $limit - mb_strlen($suffix)) . $suffix
+            : $value;
+    }
+
+    /**
+     * Split a configured command line (trusted config value) into its arguments.
+     *
+     * @return list<string>
+     */
+    private function command(string $key): array
+    {
+        return preg_split('/\s+/', trim($this->config->string($key)), -1, PREG_SPLIT_NO_EMPTY);
+    }
+
+    /**
+     * Execute a command directly (without a shell), pass $input to its STDIN and return
+     * its exit status, or null if the process could not be started.
+     *
+     * @param  list<string>  $command
+     */
+    private function execute(array $command, string $input): ?int
+    {
+        $process = proc_open($command, [0 => ['pipe', 'r']], $pipes);
+        if (! is_resource($process)) {
             return null;
         }
         fwrite($pipes[0], $input);
-        // It is important that you close any pipes before calling
-        // proc_close in order to avoid a deadlock
+        // It is important to close any pipes before calling proc_close() in order to avoid a deadlock
         fclose($pipes[0]);
 
-        return proc_close($proc);
-    }
-
-    /**
-     * Limit a string to a specific length.
-     */
-    public function stripStrLength(?string $value, ?int $limit = null, ?string $suffix = null): string
-    {
-        $value ??= '';
-        $limit = $limit ?? $this->config->int('syslog.stringLengthLimit');
-        $suffix = $suffix ?? $this->config->string('syslog.stringCutSuffix');
-
-        $strLen = mb_strlen($value);
-
-        if ($strLen > $limit) {
-            $suffixLen = mb_strlen($suffix);
-            $value = mb_substr($value, 0, $limit - $suffixLen) . $suffix;
-        }
-
-        return $value;
+        return proc_close($process);
     }
 }

@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Test double for sendmail and the throttle command.
+# Usage: fake-command <output-prefix> <exit-code> [args...]
+# Records its arguments (one per line) to <output-prefix>.args and STDIN to <output-prefix>.stdin,
+# then exits with <exit-code>.
+#
+out=$1
+code=$2
+shift 2
+: > "$out.args"
+for arg in "$@"; do
+    printf '%s\n' "$arg" >> "$out.args"
+done
+cat > "$out.stdin"
+exit "$code"

@@ -16,9 +16,9 @@ use Onlime\SendmailWrapper\SendmailThrottle;
 $config = require __DIR__ . '/bootstrap.php';
 
 // extract main parameters
-$username  = $_SERVER['SUDO_USER'];
-$rcptCount = (int) @$argv[1];
+$username = (string) getenv('SUDO_USER');
+$rcptCount = (int) ($_SERVER['argv'][1] ?? 0);
 
-// do throttling
-$status = (new SendmailThrottle($config, Message::fromStdin()))->run($username, $rcptCount);
-exit($status);
+$throttle = new SendmailThrottle($config, Message::fromStdin(), env: getenv());
+
+exit($throttle->run($username, $rcptCount)->value);

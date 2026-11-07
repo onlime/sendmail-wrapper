@@ -20,6 +20,11 @@ use PDOException;
  */
 final class SendmailThrottle
 {
+    /** SQLSTATE of deadlocks / serialization failures (e.g. MySQL error 1213) */
+    private const SQLSTATE_DEADLOCK = '40001';
+
+    private const DEADLOCK_RETRIES = 5;
+
     /** @var Closure(int, string): mixed */
     private readonly Closure $log;
 
@@ -59,76 +64,21 @@ final class SendmailThrottle
                 $this->config->string('db.pass'),
             );
 
-            $now = $this->now->format('Y-m-d H:i:s');
-            $status = ThrottleStatus::Ok;
-
-            $stmt = $this->pdo->prepare('SELECT * FROM throttle WHERE username = :username');
-            $stmt->execute(['username' => $username]);
-            $throttle = $stmt->fetchObject();
-
-            if ($throttle) {
-                // reset current counters and status on a new day (after midnight)
-                $sameDay = str_starts_with((string) $throttle->updated_ts, $this->now->format('Y-m-d'));
-
-                $countMax = (int) $throttle->count_max;
-                $countCur = ($sameDay ? (int) $throttle->count_cur : 0) + 1;
-                $countTot = (int) $throttle->count_tot + 1;
-                $rcptMax = (int) $throttle->rcpt_max;
-                $rcptCur = ($sameDay ? (int) $throttle->rcpt_cur : 0) + $rcptCount;
-                $rcptTot = (int) $throttle->rcpt_tot + $rcptCount;
-                $previousStatus = $sameDay ? (int) $throttle->status : ThrottleStatus::Ok->value;
-            } else {
-                $countMax = $this->config->int('throttle.countMax');
-                $countCur = 1;
-                $countTot = 1;
-                $rcptMax = $this->config->int('throttle.rcptMax');
-                $rcptCur = $rcptCount;
-                $rcptTot = $rcptCount;
-                $previousStatus = ThrottleStatus::Ok->value;
-            }
-
-            // check email or recipient count
-            if ($countCur > $countMax || $rcptCur > $rcptMax) {
-                // only report reaching the limit once (if previous status was ok)
-                $status = $previousStatus === ThrottleStatus::Ok->value
-                    ? ThrottleStatus::QuotaReached
-                    : ThrottleStatus::OverQuota;
-            }
-
-            if ($throttle) {
-                $this->pdo->prepare(
-                    'UPDATE throttle SET updated_ts = :now, count_cur = :countCur, count_tot = :countTot,
-                        rcpt_cur = :rcptCur, rcpt_tot = :rcptTot, status = :status
-                    WHERE username = :username'
-                )->execute([
-                    'now' => $now,
-                    'countCur' => $countCur,
-                    'countTot' => $countTot,
-                    'rcptCur' => $rcptCur,
-                    'rcptTot' => $rcptTot,
-                    'status' => $status->value,
-                    'username' => $username,
-                ]);
-                $id = (int) $throttle->id;
-
-                // if user is blocked, override previous status
-                if ($throttle->blocked) {
-                    $status = ThrottleStatus::Blocked;
+            // retry on deadlocks (e.g. concurrent inserts), as recommended by MySQL
+            for ($attempt = 1; ; $attempt++) {
+                try {
+                    [$id, $status, $counters] = $this->count($username, $rcptCount);
+                    break;
+                } catch (PDOException $e) {
+                    if ($this->pdo->inTransaction()) {
+                        $this->pdo->rollBack();
+                    }
+                    if ($e->getCode() !== self::SQLSTATE_DEADLOCK || $attempt >= self::DEADLOCK_RETRIES) {
+                        throw $e;
+                    }
+                    // random backoff, so concurrent processes don't collide again
+                    usleep(random_int(10_000, 100_000));
                 }
-            } else {
-                $this->pdo->prepare(
-                    'INSERT INTO throttle (updated_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot, status)
-                    VALUES (:now, :username, :countMax, :rcptMax, :rcptCur, :rcptTot, :status)'
-                )->execute([
-                    'now' => $now,
-                    'username' => $username,
-                    'countMax' => $countMax,
-                    'rcptMax' => $rcptMax,
-                    'rcptCur' => $rcptCur,
-                    'rcptTot' => $rcptTot,
-                    'status' => $status->value,
-                ]);
-                $id = (int) $this->pdo->lastInsertId();
             }
 
             $syslogMsg = sprintf(
@@ -142,12 +92,7 @@ final class SendmailThrottle
                 $rcptCount,
                 $status->value,
                 $this->env['SUDO_COMMAND'] ?? '',
-                $countMax,
-                $countCur,
-                $countTot,
-                $rcptMax,
-                $rcptCur,
-                $rcptTot,
+                ...array_values($counters),
             );
             // Don't write to syslog for blocked user accounts - we still have all meta information in messages
             // table but don't want to fill up syslog.
@@ -175,6 +120,99 @@ final class SendmailThrottle
 
             return ThrottleStatus::Exception;
         }
+    }
+
+    /**
+     * Update the user's throttle counters in a transaction.
+     *
+     * @return array{int, ThrottleStatus, array<string, int>} throttle record id, status and counters
+     */
+    private function count(string $username, int $rcptCount): array
+    {
+        $now = $this->now->format('Y-m-d H:i:s');
+        $status = ThrottleStatus::Ok;
+
+        // Lock the user's throttle record until commit, so that concurrently sent messages
+        // cannot read the same counters and lose each other's updates.
+        $this->pdo->beginTransaction();
+        $forUpdate = $this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $stmt = $this->pdo->prepare('SELECT * FROM throttle WHERE username = :username' . $forUpdate);
+        $stmt->execute(['username' => $username]);
+        $throttle = $stmt->fetchObject();
+
+        if ($throttle) {
+            // reset current counters and status on a new day (after midnight)
+            $sameDay = str_starts_with((string) $throttle->updated_ts, $this->now->format('Y-m-d'));
+
+            $counters = [
+                'count_max' => (int) $throttle->count_max,
+                'count_cur' => ($sameDay ? (int) $throttle->count_cur : 0) + 1,
+                'count_tot' => (int) $throttle->count_tot + 1,
+                'rcpt_max' => (int) $throttle->rcpt_max,
+                'rcpt_cur' => ($sameDay ? (int) $throttle->rcpt_cur : 0) + $rcptCount,
+                'rcpt_tot' => (int) $throttle->rcpt_tot + $rcptCount,
+            ];
+            $previousStatus = $sameDay ? (int) $throttle->status : ThrottleStatus::Ok->value;
+        } else {
+            $counters = [
+                'count_max' => $this->config->int('throttle.countMax'),
+                'count_cur' => 1,
+                'count_tot' => 1,
+                'rcpt_max' => $this->config->int('throttle.rcptMax'),
+                'rcpt_cur' => $rcptCount,
+                'rcpt_tot' => $rcptCount,
+            ];
+            $previousStatus = ThrottleStatus::Ok->value;
+        }
+
+        // check email or recipient count
+        if ($counters['count_cur'] > $counters['count_max'] || $counters['rcpt_cur'] > $counters['rcpt_max']) {
+            // only report reaching the limit once (if previous status was ok)
+            $status = $previousStatus === ThrottleStatus::Ok->value
+                ? ThrottleStatus::QuotaReached
+                : ThrottleStatus::OverQuota;
+        }
+
+        if ($throttle) {
+            $this->pdo->prepare(
+                'UPDATE throttle SET updated_ts = :now, count_cur = :countCur, count_tot = :countTot,
+                    rcpt_cur = :rcptCur, rcpt_tot = :rcptTot, status = :status
+                WHERE username = :username'
+            )->execute([
+                'now' => $now,
+                'countCur' => $counters['count_cur'],
+                'countTot' => $counters['count_tot'],
+                'rcptCur' => $counters['rcpt_cur'],
+                'rcptTot' => $counters['rcpt_tot'],
+                'status' => $status->value,
+                'username' => $username,
+            ]);
+            $id = (int) $throttle->id;
+
+            // if user is blocked, override previous status
+            if ($throttle->blocked) {
+                $status = ThrottleStatus::Blocked;
+            }
+        } else {
+            $this->pdo->prepare(
+                'INSERT INTO throttle (updated_ts, username, count_max, rcpt_max, rcpt_cur, rcpt_tot, status)
+                VALUES (:now, :username, :countMax, :rcptMax, :rcptCur, :rcptTot, :status)'
+            )->execute([
+                'now' => $now,
+                'username' => $username,
+                'countMax' => $counters['count_max'],
+                'rcptMax' => $counters['rcpt_max'],
+                'rcptCur' => $counters['rcpt_cur'],
+                'rcptTot' => $counters['rcpt_tot'],
+                'status' => $status->value,
+            ]);
+            $id = (int) $this->pdo->lastInsertId();
+        }
+
+        // commit before notifying the admin, whose mail is throttled as well
+        $this->pdo->commit();
+
+        return [$id, $status, $counters];
     }
 
     /**

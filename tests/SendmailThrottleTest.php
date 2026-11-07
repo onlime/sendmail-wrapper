@@ -194,3 +194,66 @@ it('reports database errors as exception', function () {
         ->and($result['log'][0][0])->toBe(LOG_WARNING)
         ->and($result['log'][0][1])->toStartWith('sendmail-throttle-php: PDOException: ');
 });
+
+it('updates the throttle record in a transaction', function () {
+    $pdo = throttleDb();
+    runThrottle($pdo);
+    $pdo->exec("CREATE TRIGGER fail_update BEFORE UPDATE ON throttle BEGIN SELECT RAISE(ABORT, 'update failed'); END");
+
+    $result = runThrottle($pdo);
+
+    expect($result['status'])->toBe(ThrottleStatus::Exception)
+        ->and($result['log'][0][1])->toContain('update failed')
+        ->and($pdo->inTransaction())->toBeFalse()
+        ->and(throttleRow($pdo)['count_cur'])->toBe(1);
+});
+
+it('commits the throttle record before notifying the admin', function () {
+    $pdo = throttleDb();
+    $inTransaction = null;
+    $throttle = new SendmailThrottle(
+        testConfig(['throttle' => ['rcptMax' => 1]]),
+        new Message(THROTTLE_MAIL),
+        $pdo,
+        log: fn () => null,
+        mail: function () use ($pdo, &$inTransaction) {
+            $inTransaction = $pdo->inTransaction();
+        },
+    );
+
+    expect($throttle->run('web1', 2))->toBe(ThrottleStatus::QuotaReached)
+        ->and($inTransaction)->toBeFalse();
+});
+
+it('retries on deadlocks', function (int $deadlocks, ThrottleStatus $status) {
+    $pdo = new class($deadlocks) extends PDO
+    {
+        public function __construct(public int $deadlocks)
+        {
+            parent::__construct('sqlite::memory:');
+            $this->exec(file_get_contents(__DIR__ . '/Fixtures/schema.sqlite.sql'));
+        }
+
+        public function prepare(string $query, array $options = []): PDOStatement|false
+        {
+            if (str_starts_with($query, 'INSERT INTO throttle') && $this->deadlocks-- > 0) {
+                throw new class('Deadlock found when trying to get lock; try restarting transaction') extends PDOException
+                {
+                    protected $code = '40001';
+                };
+            }
+
+            return parent::prepare($query, $options);
+        }
+    };
+
+    $result = runThrottle($pdo);
+
+    expect($result['status'])->toBe($status)
+        ->and($pdo->inTransaction())->toBeFalse()
+        ->and($pdo->query('SELECT COUNT(*) FROM throttle')->fetchColumn())->toBe($status === ThrottleStatus::Ok ? 1 : 0);
+})->with([
+    'once' => [1, ThrottleStatus::Ok],
+    'four times' => [4, ThrottleStatus::Ok],
+    'five times' => [5, ThrottleStatus::Exception],
+]);

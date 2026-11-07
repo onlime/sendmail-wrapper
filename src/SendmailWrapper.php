@@ -61,10 +61,10 @@ final class SendmailWrapper
         $script = $this->env['SCRIPT_FILENAME'] ?? '';
 
         // throttling
-        $status = ThrottleStatus::Ok->value;
+        $status = ThrottleStatus::Ok;
         if ($this->config->bool('wrapper.throttleOn')) {
             // pass the whole message including some meta information headers to the throttle command
-            $status = $this->execute(
+            $exitCode = $this->execute(
                 [...$this->command('wrapper.throttleCmd'), (string) $this->recipientCount($headers)],
                 $this->message->toString([
                     'X-Meta-MsgID' => $msgId,
@@ -72,12 +72,17 @@ final class SendmailWrapper
                     'X-Meta-Client' => $client,
                     'X-Meta-Script' => $script,
                 ]),
-            ) ?? $status;
+            );
+            // failures of the throttle command itself (e.g. not executable, PHP fatal error) are treated as exception
+            $status = ThrottleStatus::tryFrom($exitCode ?? -1) ?? ThrottleStatus::Exception;
+            if ($exitCode !== null && $status->value !== $exitCode) {
+                ($this->log)(LOG_WARNING, sprintf('%s: Throttle command failed with exit code %d', $syslogPrefix, $exitCode));
+            }
         }
 
         // Don't write to syslog for blocked user accounts - we still have all meta information in messages
         // table but don't want to fill up syslog.
-        if ($status !== ThrottleStatus::Blocked->value) {
+        if ($status !== ThrottleStatus::Blocked) {
             ($this->log)(LOG_INFO, sprintf(
                 '%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
                 $syslogPrefix,
@@ -91,17 +96,14 @@ final class SendmailWrapper
                 $site,
                 $client,
                 $script,
-                $status,
+                $status->value,
             ));
         }
 
-        // terminate if message limit exceeded
-        if ($status > ThrottleStatus::Ok->value) {
-            if ($this->config->bool('throttle.ignoreExceptions') && $status === ThrottleStatus::Exception->value) {
-                $status = ThrottleStatus::Ok->value;
-            } else {
-                return $status;
-            }
+        // terminate if message limit exceeded (or throttling failed, unless configured to ignore exceptions)
+        if ($status !== ThrottleStatus::Ok
+            && ! ($status === ThrottleStatus::Exception && $this->config->bool('throttle.ignoreExceptions'))) {
+            return $status->value;
         }
 
         $sendmail = $this->command('wrapper.sendmailCmd');
@@ -109,7 +111,7 @@ final class SendmailWrapper
         // Force adding envelope sender address (sendmail -r/-f parameters) from Return-Path or From header.
         // The address must be passed as a separate argument without involving a shell, as
         // FILTER_VALIDATE_EMAIL allows shell metacharacters like ` | & { } $
-        if (! in_array('-f', $this->args, true) && ! in_array('-r', $this->args, true)) {
+        if (! preg_grep('/^-[fr]/', $this->args)) {
             foreach (['return-path' => 'Return-Path', 'from' => 'From'] as $name => $label) {
                 if (filter_var($headers[$name] ?? '', FILTER_VALIDATE_EMAIL)) {
                     array_push($sendmail, '-r', $headers[$name]);
@@ -119,10 +121,9 @@ final class SendmailWrapper
             }
         }
 
-        // pass the message to the original sendmail binary, appending all original arguments unchanged
-        $this->execute([...$sendmail, ...$this->args], $this->message->toString());
-
-        return $status;
+        // pass the message to the original sendmail binary, appending all original arguments unchanged,
+        // and return its exit status, so that mail() reports failures
+        return $this->execute([...$sendmail, ...$this->args], $this->message->toString()) ?? 1;
     }
 
     /**
@@ -174,8 +175,26 @@ final class SendmailWrapper
      */
     private function execute(array $command, string $input): ?int
     {
-        $process = proc_open($command, [0 => ['pipe', 'r']], $pipes);
+        // report failures to syslog instead of emitting a PHP warning
+        $error = 'unknown error';
+        set_error_handler(function (int $errno, string $message) use (&$error) {
+            $error = $message;
+
+            return true;
+        });
+        try {
+            $process = proc_open($command, [0 => ['pipe', 'r']], $pipes);
+        } finally {
+            restore_error_handler();
+        }
         if (! is_resource($process)) {
+            ($this->log)(LOG_WARNING, sprintf(
+                '%s: Could not execute %s: %s',
+                $this->config->string('wrapper.syslogPrefix'),
+                $command[0] ?? '',
+                $error,
+            ));
+
             return null;
         }
         fwrite($pipes[0], $input);

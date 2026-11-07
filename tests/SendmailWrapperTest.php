@@ -77,6 +77,8 @@ it('does not add an envelope sender if passed as argument', function (array $arg
 })->with([
     [['-t', '-i', '-f', 'other@example.com']],
     [['-r', 'other@example.com', '-t']],
+    [['-t', '-i', '-fother@example.com']],
+    [['-rother@example.com']],
 ]);
 
 it('splits the configured sendmail command into arguments', function () {
@@ -128,6 +130,36 @@ it('does not send the message if the throttle command reports a limit', function
     expect($result['status'])->toBe($status)
         ->and($result['sendmail'])->toBeNull();
 })->with([1, 2, 3, 4]);
+
+it('returns the exit status of sendmail', function () {
+    expect(runWrapper(sendmailExit: 75)['status'])->toBe(75);
+});
+
+it('returns an error if sendmail cannot be executed', function () {
+    $result = runWrapper(config: ['wrapper' => ['sendmailCmd' => '/nonexistent/sendmail -oi']]);
+
+    expect($result['status'])->toBe(1)
+        ->and($result['log'][1][0])->toBe(LOG_WARNING)
+        ->and($result['log'][1][1])->toStartWith('sendmail-wrapper-php: Could not execute /nonexistent/sendmail: ');
+});
+
+it('treats unknown exit codes of the throttle command as exception', function (int $exitCode, bool $ignoreExceptions) {
+    $result = runWrapper(config: ['throttle' => ['ignoreExceptions' => $ignoreExceptions]], throttleExit: $exitCode);
+
+    expect($result['status'])->toBe($ignoreExceptions ? 0 : 4)
+        ->and($result['sendmail'] !== null)->toBe($ignoreExceptions)
+        ->and($result['log'][0])->toBe([LOG_WARNING, "sendmail-wrapper-php: Throttle command failed with exit code $exitCode"])
+        ->and($result['log'][1][1])->toEndWith('throttleStatus=4');
+})->with([126, 127, 255])->with([true, false]);
+
+it('treats a throttle command that cannot be executed as exception', function () {
+    $result = runWrapper(config: ['wrapper' => ['throttleCmd' => '/nonexistent/throttle']]);
+
+    expect($result['status'])->toBe(4)
+        ->and($result['sendmail'])->toBeNull()
+        ->and($result['log'][0][1])->toStartWith('sendmail-wrapper-php: Could not execute /nonexistent/throttle: ')
+        ->and($result['log'][1][1])->toEndWith('throttleStatus=4');
+});
 
 it('sends the message on throttle exceptions if configured to ignore them', function () {
     $result = runWrapper(config: ['throttle' => ['ignoreExceptions' => true]], throttleExit: 4);

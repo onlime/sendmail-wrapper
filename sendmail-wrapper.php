@@ -6,7 +6,7 @@
  *
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
-require_once 'app/SendmailWrapper.php';
+require_once __DIR__ . '/app/SendmailWrapper.php';
 
 $status = (new SendmailWrapper())->run();
 exit($status);

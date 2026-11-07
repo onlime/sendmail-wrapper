@@ -1,6 +1,6 @@
 <?php
 
-require_once 'StdinMailParser.php';
+require_once __DIR__ . '/StdinMailParser.php';
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services

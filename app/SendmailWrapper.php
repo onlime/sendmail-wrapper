@@ -1,7 +1,7 @@
 <?php
 
-require_once 'StdinMailParser.php';
-require_once 'SendmailThrottle.php';
+require_once __DIR__ . '/StdinMailParser.php';
+require_once __DIR__ . '/SendmailThrottle.php';
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services

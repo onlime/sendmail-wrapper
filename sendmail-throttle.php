@@ -6,7 +6,7 @@
  *
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
-require_once 'app/SendmailThrottle.php';
+require_once __DIR__ . '/app/SendmailThrottle.php';
 
 // extract main parameters
 $username  = $_SERVER['SUDO_USER'];

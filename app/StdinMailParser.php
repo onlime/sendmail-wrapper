@@ -1,6 +1,6 @@
 <?php
 
-require_once 'ConfigLoader.php';
+require_once __DIR__ . '/ConfigLoader.php';
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services

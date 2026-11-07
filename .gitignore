@@ -3,6 +3,7 @@
 /config.private.ini
 /doc/db-schema.mwb.bak
 /vendor/
+/.phpunit.cache/
 composer.phar
 composer.lock
 .pint.cache.json

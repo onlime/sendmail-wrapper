@@ -1,6 +1,10 @@
 <?php
 
-require_once __DIR__ . '/ConfigLoader.php';
+declare(strict_types=1);
+
+namespace Onlime\SendmailWrapper;
+
+use StdClass;
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services
@@ -40,7 +44,7 @@ abstract class StdinMailParser
 
     public function __construct()
     {
-        $this->conf = (new ConfigLoader())->getConfig();
+        $this->conf = (new ConfigLoader)->getConfig();
         $this->init();
     }
 
@@ -104,7 +108,7 @@ abstract class StdinMailParser
     /**
      * Re-assemble the email message from its header and body parts.
      *
-     * @param array|null $extraHeaders add extra headers only for this method call
+     * @param  array|null  $extraHeaders  add extra headers only for this method call
      * @return string
      */
     public function buildMessage(?array $extraHeaders = null): string

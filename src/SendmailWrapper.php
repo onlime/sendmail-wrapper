@@ -1,7 +1,8 @@
 <?php
 
-require_once __DIR__ . '/StdinMailParser.php';
-require_once __DIR__ . '/SendmailThrottle.php';
+declare(strict_types=1);
+
+namespace Onlime\SendmailWrapper;
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services
@@ -33,7 +34,7 @@ class SendmailWrapper extends StdinMailParser
         $msgId = sprintf(
             '%s.%s@%s',
             date('YmdHis'),
-            base_convert(mt_rand(), 10, 36),
+            base_convert((string) mt_rand(), 10, 36),
             $defaultHost
         );
 

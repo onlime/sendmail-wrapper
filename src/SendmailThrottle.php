@@ -1,6 +1,12 @@
 <?php
 
-require_once __DIR__ . '/StdinMailParser.php';
+declare(strict_types=1);
+
+namespace Onlime\SendmailWrapper;
+
+use DateTime;
+use PDO;
+use PDOException;
 
 /**
  * Sendmail Wrapper by Onlime GmbH webhosting services
@@ -48,8 +54,8 @@ class SendmailThrottle extends StdinMailParser
      * status code 1: limit reached, sending notification to admin
      * status code 2: over limit, do not warn admin multiple times
      *
-     * @param string $username
-     * @param int $rcptCount number of recipients
+     * @param  string  $username
+     * @param  int  $rcptCount  number of recipients
      * @return int exit status code (0 = success)
      * @throws Exception
      */
@@ -70,7 +76,7 @@ class SendmailThrottle extends StdinMailParser
             if ($throttle) {
                 // reset counters on new day (after midnight)
                 $dateUpdated = new DateTime($throttle->updated_ts);
-                $dateCurrent = new DateTime();
+                $dateCurrent = new DateTime;
                 $sameDay = ($dateUpdated->format('Y-m-d') == $dateCurrent->format('Y-m-d'));
                 if (! $sameDay) {
                     $countCur = 1;
@@ -125,7 +131,7 @@ class SendmailThrottle extends StdinMailParser
                 $stmt->bindParam(':rcptCur', $rcptCur, PDO::PARAM_INT);
                 $stmt->bindParam(':rcptTot', $rcptTot, PDO::PARAM_INT);
                 $stmt->execute();
-                $id = $this->pdo->lastInsertId();
+                $id = (int) $this->pdo->lastInsertId();
             }
 
             // syslogging
@@ -178,10 +184,10 @@ class SendmailThrottle extends StdinMailParser
      * Insert metadata of each message into messages table,
      * for logging purposes.
      *
-     * @param int $throttleId
-     * @param string $username
-     * @param int $rcptCount
-     * @param int $status
+     * @param  int  $throttleId
+     * @param  string  $username
+     * @param  int  $rcptCount
+     * @param  int  $status
      */
     protected function logMessage(int $throttleId, string $username, int $rcptCount, int $status)
     {

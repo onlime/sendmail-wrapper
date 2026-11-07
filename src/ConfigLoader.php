@@ -1,5 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Onlime\SendmailWrapper;
+
+use StdClass;
+
 defined('APP_ROOT')
     || define('APP_ROOT', realpath(dirname(__FILE__) . '/..'));
 

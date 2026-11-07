@@ -283,3 +283,28 @@ it('does not fail if the message cannot be logged', function () {
         ->and($result['log'][1][1])->toStartWith('sendmail-throttle-php: Could not log message to database: ')
         ->and(throttleRow($pdo)['rcpt_cur'])->toBe(11);
 });
+
+it('decodes encoded-words but keeps raw UTF-8 in header values', function (string $subject, string $decoded) {
+    $pdo = throttleDb();
+    runThrottle($pdo, data: "From: sender@example.com\nTo: a@example.com\nSubject: $subject\n\nBody");
+
+    expect($pdo->query('SELECT subject FROM messages')->fetchColumn())->toBe($decoded);
+})->with([
+    'raw UTF-8' => ['Hällo Wörld 🚀', 'Hällo Wörld 🚀'],
+    'Q encoding' => ['=?UTF-8?Q?H=C3=A4llo?= World', 'Hällo World'],
+    'B encoding' => ['=?utf-8?b?SMOkbGxv?=', 'Hällo'],
+    'adjacent encoded-words' => ['=?UTF-8?Q?H=C3=A4?= =?UTF-8?Q?llo?= World', 'Hällo World'],
+    'mixed raw and encoded' => ['Wörld =?UTF-8?Q?H=C3=A4llo?=', 'Wörld Hällo'],
+    'ISO-8859-1' => ['=?ISO-8859-1?Q?M=FCller?=', 'Müller'],
+    'not encoded' => ['=?invalid', '=?invalid'],
+]);
+
+it('truncates TEXT columns without breaking multibyte characters', function () {
+    $pdo = throttleDb();
+    runThrottle($pdo, data: "From: sender@example.com\nTo: " . str_repeat('ä', 40000) . "\n\nBody");
+
+    $toAddr = $pdo->query('SELECT to_addr FROM messages')->fetchColumn();
+
+    expect(strlen($toAddr))->toBe(65534)
+        ->and(mb_check_encoding($toAddr, 'UTF-8'))->toBeTrue();
+});

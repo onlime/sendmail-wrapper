@@ -239,11 +239,11 @@ final class SendmailThrottle
                 'rcptCount' => $rcptCount,
                 'status' => $status->value,
                 'msgid' => self::limit($headers['x-meta-msgid'] ?? null, 255),
-                'fromAddr' => self::limit(mb_decode_mimeheader($headers['from'] ?? ''), 255),
-                'toAddr' => self::limitText(mb_decode_mimeheader($headers['to'] ?? '')),
-                'ccAddr' => self::limitText(mb_decode_mimeheader($headers['cc'] ?? '')),
-                'bccAddr' => self::limitText(mb_decode_mimeheader($headers['bcc'] ?? '')),
-                'subject' => self::limit(mb_decode_mimeheader($headers['subject'] ?? ''), 255),
+                'fromAddr' => self::limit(self::decode($headers['from'] ?? ''), 255),
+                'toAddr' => self::limitText(self::decode($headers['to'] ?? '')),
+                'ccAddr' => self::limitText(self::decode($headers['cc'] ?? '')),
+                'bccAddr' => self::limitText(self::decode($headers['bcc'] ?? '')),
+                'subject' => self::limit(self::decode($headers['subject'] ?? ''), 255),
                 'site' => self::limit($headers['x-meta-site'] ?? '', 255),
                 'client' => self::limit($headers['x-meta-client'] ?? null, 40),
                 'senderHost' => self::limit(gethostname() ?: 'localhost', 255),
@@ -256,6 +256,21 @@ final class SendmailThrottle
                 $e->getMessage(),
             ));
         }
+    }
+
+    /**
+     * Decode RFC 2047 encoded-words (e.g. "=?UTF-8?Q?M=C3=BCller?=") in a header value.
+     *
+     * Only (runs of adjacent) encoded-words are decoded, as mb_decode_mimeheader() replaces
+     * raw (unencoded) UTF-8 characters by question marks.
+     */
+    private static function decode(string $value): string
+    {
+        return preg_replace_callback(
+            '/=\?[^?\s]+\?[BbQq]\?[^?\s]*\?=(?:\s+=\?[^?\s]+\?[BbQq]\?[^?\s]*\?=)*/',
+            fn (array $match) => mb_decode_mimeheader($match[0]),
+            $value,
+        ) ?? $value;
     }
 
     /**

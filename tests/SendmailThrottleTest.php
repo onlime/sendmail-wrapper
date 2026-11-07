@@ -38,7 +38,7 @@ it('logs the message meta information to the messages table', function () {
             'subject' => 'Hällo',
             'site' => 'www.example.com',
             'client' => '192.0.2.1',
-            'sender_host' => gethostname(),
+            'sender_host' => SendmailThrottle::fqdn(gethostname()),
             'script' => '/var/www/index.php',
         ]);
 });
@@ -261,3 +261,11 @@ it('truncates TEXT columns without breaking multibyte characters', function () {
     expect(strlen($toAddr))->toBe(65534)
         ->and(mb_check_encoding($toAddr, 'UTF-8'))->toBeTrue();
 });
+
+it('falls back to the hostname if its address has no fully qualified name', function (string $hostname) {
+    expect(SendmailThrottle::fqdn($hostname))->toBe($hostname);
+})->with([
+    'not a subdomain (localhost)' => 'localhost',
+    'not resolvable' => 'smw-unresolvable.invalid',
+    'IP address' => '127.0.0.1',
+]);

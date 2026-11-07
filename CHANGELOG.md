@@ -22,7 +22,7 @@ Breaking changes, see [Upgrading](README.md#upgrade-from-11x-to-20x) notes for d
 - Detect an envelope sender passed as joined argument (e.g. `-fuser@example.com`), avoiding an additional `-r` argument.
 - Fixed raw (unencoded) UTF-8 header values being logged as question marks to the `messages` table.
 - Fixed TypeError on messages without body.
-- Timestamps are supplied by PHP instead of MySQL `NOW()`, avoiding timezone mismatches. `messages.sender_host` now contains the hostname of the server running sendmail-wrapper (`gethostname()`).
+- Timestamps are supplied by PHP instead of MySQL `NOW()`, avoiding timezone mismatches. `messages.sender_host` now contains the fully qualified hostname of the server running sendmail-wrapper (like `hostname -f`).
 
 ## 1.1.1 (unreleased)
 

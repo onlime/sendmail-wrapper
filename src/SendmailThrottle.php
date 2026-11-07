@@ -246,7 +246,7 @@ final class SendmailThrottle
                 'subject' => self::limit(self::decode($headers['subject'] ?? ''), 255),
                 'site' => self::limit($headers['x-meta-site'] ?? '', 255),
                 'client' => self::limit($headers['x-meta-client'] ?? null, 40),
-                'senderHost' => self::limit(gethostname() ?: 'localhost', 255),
+                'senderHost' => self::limit(self::fqdn(gethostname() ?: 'localhost'), 255),
                 'script' => self::limit($headers['x-meta-script'] ?? null, 255),
             ]);
         } catch (PDOException $e) {
@@ -271,6 +271,19 @@ final class SendmailThrottle
             fn (array $match) => mb_decode_mimeheader($match[0]),
             $value,
         ) ?? $value;
+    }
+
+    /**
+     * Fully qualified name of a host, like `hostname -f`: the name of its address (usually from /etc/hosts).
+     * Falls back to the hostname if that name is not a subdomain of it, e.g. a provider's reverse DNS name,
+     * or the unchanged hostname/IP address that gethostbyname()/gethostbyaddr() return if a lookup fails.
+     */
+    public static function fqdn(string $hostname): string
+    {
+        $ip = gethostbyname($hostname);
+        $fqdn = $ip === $hostname ? '' : (string) gethostbyaddr($ip);
+
+        return str_starts_with($fqdn, "$hostname.") ? $fqdn : $hostname;
     }
 
     /**

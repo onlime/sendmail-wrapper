@@ -211,7 +211,7 @@ $ TEST_MYSQL_DSN="mysql:host=127.0.0.1;port=3306;charset=utf8mb4" TEST_MYSQL_USE
   $ mysql -u root -p < schema/migrations/20261107-add-username-index.sql
   ```
 - sudo 1.9.10+ (Debian 12+) is required: restrict the sudoers rules to a single number with a regular expression, see [Setup sudo](#setup-sudo). The former wildcard `[0-9]*` also matched additional arguments.
-- `messages.sender_host` now contains the hostname of the server running sendmail-wrapper (`gethostname()`), instead of the client host seen by the MySQL server (`USER()`).
+- `messages.sender_host` now contains the fully qualified hostname of the server running sendmail-wrapper (like `hostname -f`), instead of the client host seen by the MySQL server (`USER()`). On the database server itself, this is its hostname instead of `localhost`.
 - sendmail-wrapper now returns the exit status of sendmail, so `mail()` returns `false` if the MTA failed to accept a message.
 
 ### Upgrade from 1.0.x to 1.1.x

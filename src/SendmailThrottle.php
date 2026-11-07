@@ -14,7 +14,7 @@ use PDOException;
  *
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
-class SendmailThrottle extends StdinMailParser
+class SendmailThrottle
 {
     const STATUS_OK = 0;
     const STATUS_QUOTA_REACHED = 1;
@@ -23,6 +23,11 @@ class SendmailThrottle extends StdinMailParser
     const STATUS_EXCEPTION = 4;
 
     protected ?PDO $pdo;
+
+    public function __construct(
+        private readonly Config $config,
+        private readonly Message $message,
+    ) {}
 
     /**
      * Destructor
@@ -41,9 +46,9 @@ class SendmailThrottle extends StdinMailParser
     protected function connect()
     {
         $this->pdo = new PDO(
-            $this->conf->db->dsn,
-            $this->conf->db->user,
-            $this->conf->db->pass
+            $this->config->string('db.dsn'),
+            $this->config->string('db.user'),
+            $this->config->string('db.pass')
         );
     }
 
@@ -115,10 +120,10 @@ class SendmailThrottle extends StdinMailParser
                     $status = self::STATUS_BLOCKED;
                 }
             } else {
-                $countMax = $this->conf->throttle->countMax;
+                $countMax = $this->config->int('throttle.countMax');
                 $countCur = 1;
                 $countTot = 1;
-                $rcptMax  = $this->conf->throttle->rcptMax;
+                $rcptMax  = $this->config->int('throttle.rcptMax');
                 $rcptCur  = $rcptCount;
                 $rcptTot  = $rcptCount;
 
@@ -138,7 +143,7 @@ class SendmailThrottle extends StdinMailParser
             $syslogMsg =  sprintf('%s: user=%s (%s:%s), rcpts=%s, status=%s, command=%s, ' .
                 'count_max=%s, count_cur=%s, count_tot=%s, ' .
                 'rcpt_max=%s, rcpt_cur=%s, rcpt_tot=%s',
-                $this->conf->throttle->syslogPrefix,
+                $this->config->string('throttle.syslogPrefix'),
                 $username,
                 $_SERVER['SUDO_UID'],
                 $_SERVER['SUDO_GID'],
@@ -163,10 +168,10 @@ class SendmailThrottle extends StdinMailParser
                 // Do not report on status code 2, as the admin only wants to get notified once!
                 // Also, he is never interested in blocked accounts (status code 3).
                 mail(
-                    $this->conf->global->adminTo,
-                    $this->conf->throttle->adminSubject,
+                    $this->config->string('global.adminTo'),
+                    $this->config->string('throttle.adminSubject'),
                     $syslogMsg,
-                    'From: ' . $this->conf->global->adminFrom
+                    'From: ' . $this->config->string('global.adminFrom')
                 );
             }
 
@@ -175,7 +180,7 @@ class SendmailThrottle extends StdinMailParser
 
             return $status;
         } catch (PDOException $e) {
-            syslog(LOG_WARNING, sprintf('%s: PDOException: %s', $this->conf->throttle->syslogPrefix, $e->getMessage()));
+            syslog(LOG_WARNING, sprintf('%s: PDOException: %s', $this->config->string('throttle.syslogPrefix'), $e->getMessage()));
             return self::STATUS_EXCEPTION;
         }
     }
@@ -191,7 +196,7 @@ class SendmailThrottle extends StdinMailParser
      */
     protected function logMessage(int $throttleId, string $username, int $rcptCount, int $status)
     {
-        $headerArr = $this->getParsedHeaderArr();
+        $headerArr = $this->message->headers();
         $from    = mb_decode_mimeheader($headerArr['from'] ?? '');
         $to      = mb_decode_mimeheader($headerArr['to'] ?? '');
         $cc      = mb_decode_mimeheader($headerArr['cc'] ?? '');

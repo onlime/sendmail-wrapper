@@ -10,14 +10,15 @@ declare(strict_types=1);
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
 
+use Onlime\SendmailWrapper\Message;
 use Onlime\SendmailWrapper\SendmailThrottle;
 
-require __DIR__ . '/bootstrap.php';
+$config = require __DIR__ . '/bootstrap.php';
 
 // extract main parameters
 $username  = $_SERVER['SUDO_USER'];
 $rcptCount = (int) @$argv[1];
 
 // do throttling
-$status = (new SendmailThrottle)->run($username, $rcptCount);
+$status = (new SendmailThrottle($config, Message::fromStdin()))->run($username, $rcptCount);
 exit($status);

@@ -10,9 +10,10 @@ declare(strict_types=1);
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
 
+use Onlime\SendmailWrapper\Message;
 use Onlime\SendmailWrapper\SendmailWrapper;
 
-require __DIR__ . '/bootstrap.php';
+$config = require __DIR__ . '/bootstrap.php';
 
-$status = (new SendmailWrapper)->run();
+$status = (new SendmailWrapper($config, Message::fromStdin()))->run();
 exit($status);

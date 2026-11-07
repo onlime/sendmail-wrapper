@@ -10,8 +10,13 @@ namespace Onlime\SendmailWrapper;
  *
  * @copyright Copyright (c) Onlime GmbH (https://www.onlime.ch)
  */
-class SendmailWrapper extends StdinMailParser
+class SendmailWrapper
 {
+    public function __construct(
+        private readonly Config $config,
+        private readonly Message $message,
+    ) {}
+
     /**
      * Run sendmail wrapper
      *
@@ -22,12 +27,12 @@ class SendmailWrapper extends StdinMailParser
         $status = SendmailThrottle::STATUS_OK;
 
         // get config variables
-        $sendmailCmd      = $this->conf->wrapper->sendmailCmd;
-        $throttleCmd      = $this->conf->wrapper->throttleCmd;
-        $throttleOn       = (bool) $this->conf->wrapper->throttleOn;
-        $xHeaderPrefix    = $this->conf->wrapper->xHeaderPrefix;
-        $defaultHost      = $this->conf->wrapper->defaultHost;
-        $ignoreExceptions = (bool) $this->conf->throttle->ignoreExceptions;
+        $sendmailCmd      = $this->config->string('wrapper.sendmailCmd');
+        $throttleCmd      = $this->config->string('wrapper.throttleCmd');
+        $throttleOn       = $this->config->bool('wrapper.throttleOn');
+        $xHeaderPrefix    = $this->config->string('wrapper.xHeaderPrefix');
+        $defaultHost      = $this->config->string('wrapper.defaultHost');
+        $ignoreExceptions = $this->config->bool('throttle.ignoreExceptions');
 
         // generate an RFC-compliant Message-ID
         // RFC 2822 (http://www.faqs.org/rfcs/rfc2822.html)
@@ -39,10 +44,13 @@ class SendmailWrapper extends StdinMailParser
         );
 
         // set additional header
-        $this->setHeader($xHeaderPrefix . 'MsgID', sprintf('<%s>', $msgId));
+        $this->message->addHeader($xHeaderPrefix . 'MsgID', sprintf('<%s>', $msgId));
 
         // parse original headers
-        $headerArr = $this->getParsedHeaderArr();
+        $headerArr = $this->message->headers();
+        foreach ($this->message->malformedHeaders() as $line) {
+            syslog(LOG_WARNING, sprintf('%s: Could not parse mail header line: %s', $this->config->string('wrapper.syslogPrefix'), $line));
+        }
 
         // count total number of recipients
         $rcptCount   = 0;
@@ -72,7 +80,7 @@ class SendmailWrapper extends StdinMailParser
             // redirect STDIN data to throttle command
             // We're going to use the whole email message including some
             // extra headers.
-            $throttleMsg = $this->buildMessage([
+            $throttleMsg = $this->message->toString([
                 'X-Meta-MsgID'  => $messageInfo['msgid'],
                 'X-Meta-Site'   => $messageInfo['site'],
                 'X-Meta-Client' => $messageInfo['client'],
@@ -86,7 +94,7 @@ class SendmailWrapper extends StdinMailParser
         // message logging to syslog
         $syslogMsg = sprintf(
             '%s: uid=%s, msgid=%s, from=%s, to="%s", cc="%s", bcc="%s", subject="%s", site=%s, client=%s, script=%s, throttleStatus=%s',
-            $this->conf->wrapper->syslogPrefix,
+            $this->config->string('wrapper.syslogPrefix'),
             $messageInfo['uid'],
             $messageInfo['msgid'],
             $messageInfo['from'],
@@ -128,11 +136,11 @@ class SendmailWrapper extends StdinMailParser
             if (isset($headerArr['return-path']) && filter_var($headerArr['return-path'], FILTER_VALIDATE_EMAIL)) {
                 // use Return-Path as -r parameter
                 array_push($sendmailArgs, '-r', $headerArr['return-path']);
-                $this->setHeader($xHeaderPrefix . 'EnvSender', 'Return-Path');
+                $this->message->addHeader($xHeaderPrefix . 'EnvSender', 'Return-Path');
             } elseif (isset($headerArr['from']) && filter_var($headerArr['from'], FILTER_VALIDATE_EMAIL)) {
                 // use From as -r parameter
                 array_push($sendmailArgs, '-r', $headerArr['from']);
-                $this->setHeader($xHeaderPrefix . 'EnvSender', 'From');
+                $this->message->addHeader($xHeaderPrefix . 'EnvSender', 'From');
             }
         }
 
@@ -140,7 +148,7 @@ class SendmailWrapper extends StdinMailParser
         $sendmailArgs = array_merge($sendmailArgs, $argv);
 
         // reassemble the message
-        $data = $this->buildMessage();
+        $data = $this->message->toString();
 
         // pass email to the original sendmail binary
         $this->execute($sendmailArgs, $data);
@@ -180,8 +188,8 @@ class SendmailWrapper extends StdinMailParser
     public function stripStrLength(?string $value, ?int $limit = null, ?string $suffix = null): string
     {
         $value ??= '';
-        $limit = $limit ?? $this->conf->syslog->stringLengthLimit;
-        $suffix = $suffix ?? $this->conf->syslog->stringCutSuffix;
+        $limit = $limit ?? $this->config->int('syslog.stringLengthLimit');
+        $suffix = $suffix ?? $this->config->string('syslog.stringCutSuffix');
 
         $strLen = mb_strlen($value);
 

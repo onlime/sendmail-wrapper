@@ -11,15 +11,17 @@ cd ${INSTALL_DIR}
 
 chmod 700 .git
 
-#chattr -i sendmail-*.php
-chown sendmailwrapper:sendmailwrapper *.php *.ini
-chmod 400 config.private.ini
+# All code and configuration files must be owned by root. Never make sendmailwrapper the owner of any file,
+# as a file owner can always change its permissions and modify it. Only grant group read access to the files
+# that the sendmailwrapper user needs to read (sendmail-throttle runs as sendmailwrapper via sudo).
+chown root:root *.php *.ini
+chown root:sendmailwrapper sendmail-throttle.php config.private.ini
+chmod 440 config.private.ini
 chmod 444 config.ini config.local.ini
 chmod 555 sendmail-wrapper.php prepend.php
-chmod 500 sendmail-throttle.php
+chmod 550 sendmail-throttle.php
 chmod 400 schema/*.sql
-#chattr +i sendmail-*.php
 
 ln -sf ${INSTALL_DIR}/sendmail-wrapper.php ${WRAPPER_BIN}
 ln -sf ${INSTALL_DIR}/sendmail-throttle.php ${THROTTLE_BIN}
-/bin/cp -a prepend.php ${PHP_AUTO_PREPEND}
+install -o root -g root -m 444 prepend.php ${PHP_AUTO_PREPEND}

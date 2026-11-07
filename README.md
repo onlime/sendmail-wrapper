@@ -56,20 +56,24 @@ If you wish to run this manually, check the following instructions...
 Set correct permissions:
 
 ```bash
-$ chown sendmailwrapper:sendmailwrapper *.php *.ini
-$ chmod 400 config.private.ini
+$ chown root:root *.php *.ini
+$ chown root:sendmailwrapper sendmail-throttle.php config.private.ini
+$ chmod 440 config.private.ini
 $ chmod 444 config.ini config.local.ini
 $ chmod 555 sendmail-wrapper.php prepend.php
-$ chmod 500 sendmail-throttle.php
+$ chmod 550 sendmail-throttle.php
 $ chmod 400 schema/*.sql
 ```
+
+> **IMPORTANT:**
+> Never make the `sendmailwrapper` user the owner of any file. A file owner can always change its permissions and modify it, and `sendmail-wrapper.php` and `prepend.php` are executed by all your customers.
 
 Create symlinks:
 
 ```bash
 $ ln -sf /opt/sendmail-wrapper/sendmail-wrapper.php /usr/sbin/sendmail-wrapper
 $ ln -sf /opt/sendmail-wrapper/sendmail-throttle.php /usr/sbin/sendmail-throttle
-$ /bin/cp -a prepend.php /var/www/shared/
+$ install -o root -g root -m 444 prepend.php /var/www/shared/prepend.php
 ```
 
 ### Setup sudo

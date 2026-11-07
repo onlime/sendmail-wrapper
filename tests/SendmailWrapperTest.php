@@ -138,9 +138,12 @@ it('returns the exit status of sendmail', function () {
 it('returns an error if sendmail cannot be executed', function () {
     $result = runWrapper(config: ['wrapper' => ['sendmailCmd' => '/nonexistent/sendmail -oi']]);
 
-    expect($result['status'])->toBe(1)
-        ->and($result['log'][1][0])->toBe(LOG_WARNING)
-        ->and($result['log'][1][1])->toStartWith('sendmail-wrapper-php: Could not execute /nonexistent/sendmail: ');
+    // PHP >= 8.3 fails to spawn the process, PHP 8.2 forks and the child exits with 127
+    expect($result['status'])->toBeIn([1, 127]);
+    if ($result['status'] === 1) {
+        expect($result['log'][1])->toMatchArray([LOG_WARNING])
+            ->and($result['log'][1][1])->toStartWith('sendmail-wrapper-php: Could not execute /nonexistent/sendmail: ');
+    }
 });
 
 it('treats unknown exit codes of the throttle command as exception', function (int $exitCode, bool $ignoreExceptions) {
@@ -157,7 +160,10 @@ it('treats a throttle command that cannot be executed as exception', function ()
 
     expect($result['status'])->toBe(4)
         ->and($result['sendmail'])->toBeNull()
-        ->and($result['log'][0][1])->toStartWith('sendmail-wrapper-php: Could not execute /nonexistent/throttle: ')
+        // PHP >= 8.3 fails to spawn the process, PHP 8.2 forks and the child exits with 127
+        ->and($result['log'][0][1])->toMatch(
+            '/^sendmail-wrapper-php: (Could not execute \/nonexistent\/throttle: |Throttle command failed with exit code 127$)/'
+        )
         ->and($result['log'][1][1])->toEndWith('throttleStatus=4');
 });
 

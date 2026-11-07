@@ -12,13 +12,18 @@ declare(strict_types=1);
 
 use Onlime\SendmailWrapper\Message;
 use Onlime\SendmailWrapper\SendmailThrottle;
+use Onlime\SendmailWrapper\ThrottleStatus;
 
 $config = require __DIR__ . '/bootstrap.php';
 
-// extract main parameters
-$username = (string) getenv('SUDO_USER');
-$rcptCount = (int) ($_SERVER['argv'][1] ?? 0);
+// must be run via sudo (as sendmailwrapper user), with the recipient count as only argument
+$username = getenv('SUDO_USER');
+$args = array_slice($_SERVER['argv'], 1);
+if (! $username || count($args) !== 1 || ! ctype_digit($args[0])) {
+    fwrite(STDERR, "Usage: sudo -u sendmailwrapper sendmail-throttle <recipient-count>\n");
+    exit(ThrottleStatus::Exception->value);
+}
 
 $throttle = new SendmailThrottle($config, Message::fromStdin(), env: getenv());
 
-exit($throttle->run($username, $rcptCount)->value);
+exit($throttle->run($username, (int) $args[0])->value);

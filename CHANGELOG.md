@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 1.1.1 (unreleased)
+
+Security release, all users should upgrade immediately.
+
+- Security: Fixed local privilege escalation to the `sendmailwrapper` user. Relative `require_once` paths were resolved through `include_path` (whose leading `.` is the caller's working directory) when running `sendmail-throttle` via sudo. All includes now use absolute `__DIR__` based paths.
+- Security: Fixed shell command injection through a `From`/`Return-Path` header address (`FILTER_VALIDATE_EMAIL` accepts shell metacharacters) and through the original sendmail arguments, which were passed through a shell a second time. Sendmail and the throttle command are now executed via `proc_open()` with an argument array, without any shell.
+- Security: `install.sh` no longer makes `sendmailwrapper` the owner of any file. All files are owned by root, only `sendmail-throttle.php` and `config.private.ini` grant group read access to `sendmailwrapper`. `prepend.php` is installed as `root:root 0444`. Re-run `install.sh` (or update your permissions manually, see README) after upgrading.
+- Fixed `prepend.php` PHP 8.1+ deprecation notices on unset `$_SERVER` keys (e.g. in PHP CLI), no longer exporting empty environment variables or leaking variables into the global scope.
+- Fixed PHP 8.1+ and 8.4 deprecations (implicitly nullable parameters, null passed to `trim()` and `mb_decode_mimeheader()`).
+
 ## 1.1.0 (2023-03-31)
 
 - Breaking change: Moved sendmail command-line options `-t -i` from Sendmail-wrapper config (`sendmailCmd` in `config.ini`) to the recommended `sendmail_path` configuration in `php.ini` to avoid problems with Symfony Mailer. see [Upgrading](README.md#upgrading) notes for details.

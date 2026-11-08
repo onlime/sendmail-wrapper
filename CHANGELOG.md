@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 2.0.0 (unreleased)
+## 2.0.0 (2026-11-08)
 
 Breaking changes, see [Upgrading](README.md#upgrade-from-11x-to-20x) notes for details.
 
@@ -24,7 +24,7 @@ Breaking changes, see [Upgrading](README.md#upgrade-from-11x-to-20x) notes for d
 - Fixed TypeError on messages without body.
 - Timestamps are supplied by PHP instead of MySQL `NOW()`, avoiding timezone mismatches. `messages.sender_host` now contains the fully qualified hostname of the server running sendmail-wrapper (like `hostname -f`).
 
-## 1.1.1 (unreleased)
+## 1.1.1 (2026-11-08)
 
 Security release, all users should upgrade immediately.
 

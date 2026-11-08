@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 1.1.1 (unreleased)
+## 1.1.1 (2026-11-08)
 
 Security release, all users should upgrade immediately.
 
